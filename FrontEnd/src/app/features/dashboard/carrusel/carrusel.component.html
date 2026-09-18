@@ -1,0 +1,100 @@
+@if (loading()) {
+  <div class="carrusel-loading">
+    <div class="spinner-border" role="status"></div>
+    <span>Cargando carrusel...</span>
+  </div>
+}
+
+@if (error()) {
+  <div class="carrusel-error">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ error() }}
+  </div>
+}
+
+@if (!loading() && !error() && slides().length > 0) {
+  <div
+    class="carrusel-root"
+    (mouseenter)="pauseAutoPlay()"
+    (mouseleave)="resumeAutoPlay()"
+    (touchstart)="onTouchStart($event)"
+    (touchend)="onTouchEnd($event)"
+  >
+    <!-- Slides -->
+    <div class="carrusel-viewport">
+      @for (slide of slides(); track slide.id_banner; let i = $index) {
+        <div
+          class="carrusel-slide"
+          [class.is-active]="i === currentIdx()"
+          [class.slide-enter-next]="i === currentIdx() && direction() === 'next' && animating()"
+          [class.slide-enter-prev]="i === currentIdx() && direction() === 'prev' && animating()"
+        >
+          <!-- Imagen principal completa -->
+          <img
+            class="slide-img"
+            [src]="slide.url_imagen"
+            [alt]="slide.titulo"
+            [attr.loading]="i === 0 ? 'eager' : 'lazy'"
+            [attr.fetchpriority]="i === 0 ? 'high' : 'auto'"
+            decoding="async"
+          />
+
+          <!-- Overlay gradiente -->
+          <div class="slide-overlay"></div>
+
+          <!-- Caption -->
+          <div class="slide-caption glass-caption">
+            <p class="caption-type">
+              <i class="bi bi-hospital-fill"></i>
+              SICHCP
+            </p>
+            <h2 class="caption-title">{{ slide.titulo }}</h2>
+            <p class="caption-desc">{{ slide.descripcion }}</p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Control anterior -->
+    @if (total() > 1) {
+      <button
+        class="carrusel-ctrl ctrl-prev"
+        type="button"
+        (click)="prev()"
+        aria-label="Slide anterior"
+      >
+        <i class="bi bi-chevron-left"></i>
+      </button>
+
+      <!-- Control siguiente -->
+      <button
+        class="carrusel-ctrl ctrl-next"
+        type="button"
+        (click)="next()"
+        aria-label="Slide siguiente"
+      >
+        <i class="bi bi-chevron-right"></i>
+      </button>
+
+      <!-- Indicadores -->
+      <div class="carrusel-dots" role="tablist">
+        @for (slide of slides(); track slide.id_banner; let i = $index) {
+          <button
+            class="dot"
+            type="button"
+            role="tab"
+            [class.dot-active]="i === currentIdx()"
+            [attr.aria-selected]="i === currentIdx()"
+            [attr.aria-label]="'Ir al slide ' + (i + 1)"
+            (click)="goTo(i)"
+          ></button>
+        }
+      </div>
+
+      <!-- Contador -->
+      <div class="carrusel-counter">
+        {{ currentIdx() + 1 }} / {{ total() }}
+      </div>
+    }
+  </div>
+}

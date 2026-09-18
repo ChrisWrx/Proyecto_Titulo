@@ -1,0 +1,582 @@
+<div class="dashboard-shell">
+  <header class="dashboard-topbar glass-panel">
+    <div class="topbar-brand">
+      <img src="assets/images/logo_bienvenida.png" alt="SICHCP Sistema de Integración Clínica" class="brand-logo">
+      <span class="brand-support-text">Sistema de Integración de Información Clínica en <br class="brand-break-mobile">Hospitales y Centros de Salud Públicos.</span>
+    </div>
+
+    <!-- Botón hamburguesa solo visible en mobile -->
+    @if (isMobile()) {
+      <button class="mobile-menu-btn" type="button" (click)="toggleSidebar()" aria-label="Abrir menú">
+        <i class="bi" [class.bi-list]="sidebarCollapsed()" [class.bi-x-lg]="!sidebarCollapsed()"></i>
+      </button>
+    }
+
+    <div class="user-area">
+      <button class="user-trigger" type="button" (click)="toggleUserMenu($event)">
+        <i class="bi bi-person-circle"></i>
+        <span>Bienvenido(a): <strong>{{ nombreUsuario() }}</strong></span>
+        <i class="bi" [class.bi-chevron-up]="userMenuOpen()" [class.bi-chevron-down]="!userMenuOpen()"></i>
+      </button>
+
+      @if (userMenuOpen()) {
+        <div class="user-dropdown glass-panel" (click)="$event.stopPropagation()">
+          <div class="user-dropdown-header">
+            <p class="user-fullname">{{ nombreUsuario() }}</p>
+            <span class="user-role-badge"><i class="bi bi-shield-check me-1"></i>{{ usuario()?.nombre_rol || 'Perfil Activo' }}</span>
+          </div>
+
+          <div class="user-establishment-card">
+            <div class="establishment-icon-badge">
+              <i class="bi bi-hospital-fill"></i>
+            </div>
+            <div class="establishment-info">
+              <span class="establishment-name">{{ nombreEstablecimiento() }}</span>
+              <span class="establishment-type">{{ tipoEstablecimiento() }}</span>
+              @if (ubicacionEstablecimiento()) {
+                <span class="establishment-location">
+                  <i class="bi bi-geo-alt-fill me-1"></i>{{ ubicacionEstablecimiento() }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <button class="btn-logout" type="button" (click)="logout()">
+            <i class="bi bi-box-arrow-right"></i>
+            Cerrar sesión
+          </button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <div
+    class="dashboard-container"
+    [class.mobile-layout]="isMobile()"
+    [class.sidebar-collapsed]="sidebarCollapsed()"
+    [class.sidebar-open]="isMobile() && !sidebarCollapsed()"
+  >
+    <aside class="dashboard-sidebar glass-panel" [class.is-collapsed]="sidebarCollapsed() && !isMobile()">
+      <div class="menu-header">
+        <h3>Menú principal</h3>
+        <button class="sidebar-toggle-btn sidebar-toggle-btn--menu" type="button" (click)="toggleSidebar()" aria-label="Alternar menú principal">
+          <i class="bi" [class.bi-chevron-bar-left]="!sidebarCollapsed()" [class.bi-chevron-bar-right]="sidebarCollapsed()"></i>
+        </button>
+      </div>
+
+      <nav class="menu-nav">
+        @if (loading()) {
+          <div class="menu-loading">
+            <div class="spinner-border" role="status"></div>
+            <span>Cargando menú...</span>
+          </div>
+        }
+
+        @if (errorMessage()) {
+          <div class="menu-error">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ errorMessage() }}
+          </div>
+        }
+
+        @if (!loading() && !errorMessage()) {
+          <ul class="menu-list">
+            @for (item of menuHierarchy(); track item.id_menu) {
+              <li class="menu-item">
+                <button
+                  class="menu-link"
+                  type="button"
+                  [class.has-submenu]="item.children.length > 0"
+                  [class.is-active]="!item.children.length && isRouteActive(item.ruta)"
+                  (click)="onPrimaryMenuClick(item)"
+                >
+                  <i class="bi menu-icon" [class]="'bi menu-icon ' + getMenuIcon(item.nombre, true)"></i>
+                  <span class="menu-text">{{ getDisplayMenuName(item.nombre) }}</span>
+                  @if (item.children.length > 0) {
+                    <i class="bi bi-chevron-right submenu-chevron" [class.is-open]="isSectionOpen(item.id_menu)"></i>
+                  }
+                </button>
+
+                @if (item.children.length > 0) {
+                  <div class="submenu-collapse" [class.open]="isSectionOpen(item.id_menu)">
+                    <ul class="submenu-list">
+                      @for (subitem of item.children; track subitem.id_menu) {
+                        <li class="submenu-item">
+                          <button class="submenu-link" type="button" [class.is-active]="isRouteActive(subitem.ruta)" (click)="onMenuClick(subitem)">
+                            <i class="bi submenu-icon" [class]="'bi submenu-icon ' + getMenuIcon(subitem.nombre, false)"></i>
+                            <span class="submenu-text">{{ getDisplayMenuName(subitem.nombre) }}</span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </nav>
+    </aside>
+
+    <main class="dashboard-content">
+      <div
+        class="content-stage"
+        [class.is-leaving]="contentAnimationState() === 'leaving'"
+        [class.is-entering]="contentAnimationState() === 'entering'"
+      >
+        @if (componentActivo() === null) {
+          <div class="content-placeholder glass-panel">
+            <h2>Bienvenido al Sistema</h2>
+            <p>Selecciona una opción del menú para comenzar</p>
+            <div class="carrusel-wrapper">
+              <app-carrusel></app-carrusel>
+            </div>
+
+            @if (!indicadoresLoading() && indicadores().length > 0) {
+              <section class="indicadores-grid" aria-label="Indicadores principales">
+                @for (item of indicadores(); track item.orden; let i = $index) {
+                  <article class="indicador-card" [style.--card-index]="i">
+                    <div class="indicador-icon" [class]="'indicador-icon indicador-icon-' + item.orden">
+                      <i class="bi" [class]="'bi ' + item.icono"></i>
+                    </div>
+
+                    <div class="indicador-info">
+                      <p class="indicador-titulo">{{ item.indicador }}</p>
+                      <p class="indicador-valor">{{ formatIndicadorValor(getIndicadorValorAnimado(item)) }}</p>
+                      <p class="indicador-subtitulo">{{ item.subtitulo }}</p>
+                      @if (item.variacion) {
+                        <p class="indicador-variacion">
+                          <span
+                            class="variacion-valor"
+                            [class.variacion-positiva]="getVariacionValor(item.variacion).startsWith('+')"
+                          >
+                            {{ getVariacionValor(item.variacion) }}
+                          </span>
+                          <span class="variacion-texto">{{ getVariacionTexto(item.variacion) }}</span>
+                        </p>
+                      }
+                    </div>
+                  </article>
+                }
+              </section>
+            }
+
+            <!-- ===== SECCIÓN INTEROPERABILIDAD ===== -->
+            @if (!interoperabilidadLoading()) {
+              <section class="interop-grid" aria-label="Red de interoperabilidad">
+
+                <!-- Panel 1: Red -->
+                <div class="interop-panel panel-red">
+                  <h3 class="interop-titulo">Red de Interoperabilidad SICHCP</h3>
+                  <div class="red-body">
+                    <img src="assets/images/logo_indicador.png" alt="Red de interoperabilidad SICHCP" class="red-imagen" />
+                    <div class="red-nodos">
+                      @for (nodo of interoperabilidad().red; track nodo.orden; let i = $index) {
+                        <div class="red-nodo" [style.--nodo-index]="i" [style.top]="getRedDotTop(i)">
+                          <div class="nodo-icono-wrap">
+                            <i class="bi nodo-icono" [class]="'bi ' + nodo.icono"></i>
+                          </div>
+                          <div class="nodo-info">
+                            <span class="nodo-nombre">{{ nodo.indicador }}</span>
+                            <span class="nodo-valor">{{ formatIndicadorValor(getRedValorAnimado(nodo)) }}</span>
+                            <span class="nodo-subtitulo">{{ nodo.subtitulo }}</span>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  <div class="red-leyenda">
+                    <span class="leyenda-item"><span class="leyenda-dot dot-verde"></span>Conexión activa</span>
+                    <span class="leyenda-item"><span class="leyenda-dot dot-azul"></span>Intercambio de información</span>
+                  </div>
+                </div>
+
+                <!-- Panel 2: Recursos FHIR -->
+                <div class="interop-panel panel-fhir">
+                  <h3 class="interop-titulo">Recursos FHIR más utilizados</h3>
+                  <ul class="fhir-lista">
+                    @for (item of interoperabilidad().recursosFhir; track item.orden; let i = $index) {
+                      <li class="fhir-item" [style.--barra-index]="i" [style.--barra-ancho]="getBarraAncho(item.total_uso, maxRecursoFhir())">
+                        <div class="fhir-nombre">
+                          <i class="bi fhir-icono" [class]="'bi ' + getRecursoFhirIcono(item.codigo)"></i>
+                          <span>{{ item.nombre }}</span>
+                        </div>
+                        <div class="fhir-barra-wrap">
+                          <div class="fhir-barra-fill"></div>
+                        </div>
+                        <span class="fhir-total">{{ formatIndicadorValor(item.total_uso) }}</span>
+                      </li>
+                    }
+                  </ul>
+                  <div class="interop-footer" (click)="abrirModalFhir()">
+                    <span>Ver todos los recursos FHIR</span>
+                    <i class="bi bi-arrow-right-short"></i>
+                  </div>
+                </div>
+
+                <!-- Panel 3: Últimas integraciones -->
+                <div class="interop-panel panel-integraciones">
+                  <h3 class="interop-titulo">Últimas integraciones</h3>
+                  <table class="integ-tabla">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Establecimiento</th>
+                        <th>Estado</th>
+                        <th>Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of interoperabilidad().ultimasIntegraciones; track row.nombre_establecimiento; let i = $index) {
+                        <tr [style.--fila-index]="i">
+                          <td class="integ-fecha">{{ row.fecha_integracion }}</td>
+                          <td class="integ-establecimiento">
+                            <i class="bi" [class]="'bi ' + getEstablecimientoIcono(row.tipo_establecimiento)"></i>
+                            {{ row.nombre_establecimiento }}
+                          </td>
+                          <td>
+                            <span class="badge-conectado">
+                              <i class="bi bi-check-circle-fill"></i>
+                              {{ row.estado }}
+                            </span>
+                          </td>
+                          <td class="integ-tipo">{{ row.tipo_integracion }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  <div class="interop-footer" (click)="abrirModalIntegraciones()">
+                    <span>Ver todas las integraciones</span>
+                    <i class="bi bi-arrow-right-short"></i>
+                  </div>
+                </div>
+
+              </section>
+            }
+
+            <!-- ===== SECCIÓN PANELES CLÍNICOS ===== -->
+            @if (!panelsLoading()) {
+              <section class="paneles-grid" aria-label="Paneles clínicos">
+
+                <!-- Panel Noticias y Comunicados -->
+                <div class="panel-clinico">
+                  <div class="panel-clinico-header">
+                    <i class="bi bi-megaphone-fill panel-header-icon"></i>
+                    <h3 class="panel-clinico-titulo">Noticias y Comunicados</h3>
+                  </div>
+                  <ul class="noticias-lista">
+                    @for (item of noticiasVistaDashboard(); track item.titulo; let i = $index) {
+                      <li class="noticia-item" [style.--item-index]="i">
+                        <span class="noticia-fecha">{{ formatFechaNoticia(item.fecha) }}</span>
+                        <span class="noticia-texto">{{ item.titulo }}</span>
+                      </li>
+                    }
+                  </ul>
+                  @if (hayMasNoticias()) {
+                    <div class="panel-clinico-footer" (click)="abrirModalNoticias()">
+                      <span>Ver todas las noticias</span>
+                      <i class="bi bi-arrow-right-short"></i>
+                    </div>
+                  }
+                </div>
+
+                <!-- Panel Estado de la Red de Interoperabilidad -->
+                <div class="panel-clinico">
+                  <div class="panel-clinico-header">
+                    <i class="bi bi-wifi panel-header-icon"></i>
+                    <h3 class="panel-clinico-titulo">Estado de la Red de Interoperabilidad</h3>
+                  </div>
+                  <ul class="red-estado-lista">
+                    @for (item of redEstado().items; track item.nombre; let i = $index) {
+                      <li class="red-estado-item" [style.--item-index]="i">
+                        <div class="red-estado-info">
+                          <span class="red-estado-nombre">{{ item.nombre }}</span>
+                          <span class="red-estado-fraccion">{{ item.activos }} / {{ item.total }}</span>
+                        </div>
+                        <div class="red-barra-wrap">
+                          <div class="red-barra-fill" [style.width.%]="item.porcentaje"></div>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                  <div class="red-estado-footer">
+                    <i class="bi bi-clock-fill"></i>
+                    <span>Servicios operativos: <strong>{{ redEstado().serviciosOperativos }}%</strong></span>
+                  </div>
+                </div>
+
+                <!-- Panel Alertas Clínicas -->
+                <div class="panel-clinico">
+                  <div class="panel-clinico-header">
+                    <i class="bi bi-bell-fill panel-header-icon"></i>
+                    <h3 class="panel-clinico-titulo">Alertas Clínicas</h3>
+                  </div>
+                  <ul class="alertas-lista">
+                    @for (alerta of alertasClinicas(); track alerta.orden; let i = $index) {
+                      <li class="alerta-item" [style.--item-index]="i" (click)="abrirModalAlerta(alerta)">
+                        <div class="alerta-icono-wrap" [class]="'alerta-icono-wrap alerta-' + alerta.tipo">
+                          <i class="bi" [class]="'bi ' + alerta.icono"></i>
+                        </div>
+                        <span class="alerta-nombre">{{ alerta.nombre }}</span>
+                        <span class="alerta-valor" [class]="'alerta-valor alerta-valor-' + alerta.tipo">{{ alerta.valor }}</span>
+                        <i class="bi bi-chevron-right alerta-arrow"></i>
+                      </li>
+                    }
+                  </ul>
+                </div>
+
+              </section>
+            }
+          </div>
+        } @else if (componentActivo() === 'mantenedor-imagenes') {
+          <app-mantenedor-imagenes></app-mantenedor-imagenes>
+        } @else if (componentActivo() === 'usuarios') {
+          <app-usuarios></app-usuarios>
+        } @else if (componentActivo() === 'pacientes') {
+          <app-pacientes></app-pacientes>
+        } @else if (componentActivo() === 'seguridad') {
+          <section class="security-shell" aria-label="Opciones de Seguridad">
+            <header class="security-header">
+              <div class="security-title-icon"><i class="bi bi-shield-lock-fill"></i></div>
+              <div>
+                <h1>Seguridad</h1>
+                <p>Administración de accesos y contenido del sistema</p>
+              </div>
+            </header>
+
+            <div class="security-options">
+              @for (option of opcionesSeguridad(); track option.id_menu) {
+                <button
+                  class="security-option glass-panel"
+                  type="button"
+                  [class.is-active]="opcionSeguridadActiva() === (option.ruta === '/seguridad/usuarios' ? 'usuarios' : 'mantenedor-imagenes')"
+                  (click)="seleccionarOpcionSeguridad(option)"
+                >
+                  <span class="security-option-icon">
+                    <i class="bi" [class]="'bi ' + getMenuIcon(option.nombre, false)"></i>
+                  </span>
+                  <span class="security-option-content">
+                    <strong>{{ getDisplayMenuName(option.nombre) }}</strong>
+                    <small>{{ option.nombre === 'Usuarios' ? 'Gestión de usuarios y perfiles asignados' : 'Gestión de banners y carruseles del sistema' }}</small>
+                  </span>
+                  <i class="bi bi-chevron-right security-option-arrow"></i>
+                </button>
+              }
+            </div>
+
+            <div class="security-content">
+              @if (opcionSeguridadActiva() === 'usuarios') {
+                <app-usuarios></app-usuarios>
+              } @else {
+                <app-mantenedor-imagenes></app-mantenedor-imagenes>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===== MODAL: Recursos FHIR ===== -->
+@if (modalFhirAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModales()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-database modal-header-icon"></i> Todos los Recursos FHIR</h3>
+        <button class="modal-close" type="button" (click)="cerrarModales()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        @if (modalFhirCargando()) {
+          <div class="modal-cargando"><div class="spinner-border spinner-border-sm" role="status"></div><span>Cargando...</span></div>
+        } @else {
+          <ul class="fhir-lista modal-fhir-lista">
+            @for (item of fhirPaginados(); track item.orden; let i = $index) {
+              <li class="fhir-item" [style.--barra-index]="i" [style.--barra-ancho]="getBarraAncho(item.total_uso, maxModalFhir())">
+                <div class="fhir-nombre">
+                  <i class="bi fhir-icono" [class]="'bi ' + getRecursoFhirIcono(item.codigo)"></i>
+                  <span>{{ item.nombre }}</span>
+                </div>
+                <div class="fhir-barra-wrap"><div class="fhir-barra-fill"></div></div>
+                <span class="fhir-total">{{ formatIndicadorValor(item.total_uso) }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      @if (totalPaginasFhir() > 1) {
+        <div class="modal-paginacion">
+          <button type="button" [disabled]="paginaFhir() === 1" (click)="irPaginaFhir(-1)"><i class="bi bi-chevron-left"></i></button>
+          <span>{{ paginaFhir() }} / {{ totalPaginasFhir() }}</span>
+          <button type="button" [disabled]="paginaFhir() === totalPaginasFhir()" (click)="irPaginaFhir(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- ===== MODAL: Integraciones ===== -->
+@if (modalIntegAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModales()">
+    <div class="modal-container modal-container-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-plug modal-header-icon"></i> Todas las Integraciones</h3>
+        <button class="modal-close" type="button" (click)="cerrarModales()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        @if (modalIntegCargando()) {
+          <div class="modal-cargando"><div class="spinner-border spinner-border-sm" role="status"></div><span>Cargando...</span></div>
+        } @else {
+          <table class="integ-tabla modal-tabla">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Establecimiento</th>
+                <th>Estado</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of integPaginados(); track row.nombre_establecimiento + $index; let i = $index) {
+                <tr [style.--fila-index]="i">
+                  <td class="integ-fecha">{{ row.fecha_integracion }}</td>
+                  <td class="integ-establecimiento">
+                    <i class="bi" [class]="'bi ' + getEstablecimientoIcono(row.tipo_establecimiento)"></i>
+                    {{ row.nombre_establecimiento }}
+                  </td>
+                  <td><span class="badge-conectado"><i class="bi bi-check-circle-fill"></i> {{ row.estado }}</span></td>
+                  <td class="integ-tipo">{{ row.tipo_integracion }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+      @if (totalPaginasInteg() > 1) {
+        <div class="modal-paginacion">
+          <button type="button" [disabled]="paginaInteg() === 1" (click)="irPaginaInteg(-1)"><i class="bi bi-chevron-left"></i></button>
+          <span>{{ paginaInteg() }} / {{ totalPaginasInteg() }}</span>
+          <button type="button" [disabled]="paginaInteg() === totalPaginasInteg()" (click)="irPaginaInteg(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- ===== MODAL: Noticias ===== -->
+@if (modalNoticiasAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModales()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-megaphone-fill modal-header-icon"></i> Noticias y Comunicados</h3>
+        <button class="modal-close" type="button" (click)="cerrarModales()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <ul class="noticias-lista modal-noticias-lista">
+          @for (item of noticiasPaginadas(); track item.titulo; let i = $index) {
+            <li class="noticia-item" [style.--item-index]="i">
+              <span class="noticia-fecha">{{ formatFechaNoticia(item.fecha) }}</span>
+              <span class="noticia-texto">{{ item.titulo }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+      @if (totalPaginasNoticias() > 1) {
+        <div class="modal-paginacion">
+          <button type="button" [disabled]="paginaNoticias() === 1" (click)="irPaginaNoticias(-1)"><i class="bi bi-chevron-left"></i></button>
+          <span>{{ paginaNoticias() }} / {{ totalPaginasNoticias() }}</span>
+          <button type="button" [disabled]="paginaNoticias() === totalPaginasNoticias()" (click)="irPaginaNoticias(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- ===== MODAL: Detalle Alerta ===== -->
+@if (modalAlertaAbierto()) {
+  <div class="modal-overlay" (click)="cerrarModales()">
+    <div class="modal-container modal-container-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-bell-fill modal-header-icon"></i> {{ modalAlertaTitulo() }}</h3>
+        <button class="modal-close" type="button" (click)="cerrarModales()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        @if (modalAlertaCargando()) {
+          <div class="modal-cargando"><div class="spinner-border spinner-border-sm" role="status"></div><span>Cargando...</span></div>
+        } @else if (modalAlertaTipo() === 'alergias') {
+          <table class="modal-tabla">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Alergia</th>
+                <th>Tipo Reacción</th>
+                <th>Criticidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of alertaPaginados(); track $index; let i = $index) {
+                <tr [style.--fila-index]="i">
+                  <td>{{ getAlertaComoAlergia(item).nombre_paciente }}</td>
+                  <td>{{ getAlertaComoAlergia(item).alergeno }}</td>
+                  <td>{{ getAlertaComoAlergia(item).tipo_reaccion }}</td>
+                  <td><span class="badge-critico">{{ getAlertaComoAlergia(item).criticidad }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else if (modalAlertaTipo() === 'medicamentos') {
+          <table class="modal-tabla">
+            <thead>
+              <tr>
+                <th>Medicamento</th>
+                <th>Dosis</th>
+                <th>Frecuencia</th>
+                <th>Vía</th>
+                <th>Desde</th>
+                <th>Hasta</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of alertaPaginados(); track $index; let i = $index) {
+                <tr [style.--fila-index]="i">
+                  <td>{{ getAlertaComoMedicamento(item).nombre_medicamento }}</td>
+                  <td>{{ getAlertaComoMedicamento(item).dosis }}</td>
+                  <td>{{ getAlertaComoMedicamento(item).frecuencia }}</td>
+                  <td>{{ getAlertaComoMedicamento(item).via_administracion }}</td>
+                  <td>{{ getAlertaComoMedicamento(item).fecha_inicio }}</td>
+                  <td>{{ getAlertaComoMedicamento(item).fecha_fin }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else if (modalAlertaTipo() === 'examenes') {
+          <table class="modal-tabla">
+            <thead>
+              <tr>
+                <th>Tipo Examen</th>
+                <th>Resultado</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of alertaPaginados(); track $index; let i = $index) {
+                <tr [style.--fila-index]="i">
+                  <td>{{ getAlertaComoExamen(item).tipo_examen }}</td>
+                  <td>{{ getAlertaComoExamen(item).resultado }}</td>
+                  <td class="integ-fecha">{{ getAlertaComoExamen(item).fecha_examen }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+      @if (totalPaginasAlerta() > 1) {
+        <div class="modal-paginacion">
+          <button type="button" [disabled]="paginaAlerta() === 1" (click)="irPaginaAlerta(-1)"><i class="bi bi-chevron-left"></i></button>
+          <span>{{ paginaAlerta() }} / {{ totalPaginasAlerta() }}</span>
+          <button type="button" [disabled]="paginaAlerta() === totalPaginasAlerta()" (click)="irPaginaAlerta(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      }
+    </div>
+  </div>
+}

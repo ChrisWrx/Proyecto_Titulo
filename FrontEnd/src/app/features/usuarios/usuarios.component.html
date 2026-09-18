@@ -1,0 +1,593 @@
+<div class="mantenedor-shell">
+  <div class="mantenedor-container">
+    <div class="mantenedor-header">
+      <h1>Usuarios del Sistema</h1>
+      <p>Gestiona los usuarios y sus accesos</p>
+    </div>
+
+    <div class="section-tabla">
+      <div class="card-tabla glass-panel">
+        <div class="tabla-header">
+          <h2>Usuarios registrados</h2>
+          <div class="tabla-actions">
+            <label class="search-control">
+              <i class="bi bi-search"></i>
+              <input type="search" [ngModel]="textoBusqueda()" (ngModelChange)="buscarUsuarios($event)" placeholder="Buscar usuario" aria-label="Buscar usuario" />
+            </label>
+            <button class="btn-agregar" type="button" (click)="abrirModalCrear()">
+              <i class="bi bi-person-plus"></i>
+              Nuevo usuario
+            </button>
+          </div>
+        </div>
+
+        <div class="tabla-wrapper">
+          <table class="tabla-banners">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Usuario</th>
+                <th>Área</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (usuario of usuariosPaginados(); track usuario.username) {
+                <tr>
+                  <td>{{ usuario.nombre_completo }}</td>
+                  <td>{{ usuario.correo }}</td>
+                  <td>{{ usuario.username }}</td>
+                  <td>{{ usuario.area }}</td>
+                  <td>
+                    <span class="badge-rol">{{ usuario.nombre_rol }}</span>
+                  </td>
+                  <td class="acciones">
+                    <button
+                      class="btn-icon btn-editar"
+                      type="button"
+                      title="Editar"
+                      (click)="editarUsuario(usuario)"
+                    >
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button
+                      class="btn-icon btn-eliminar"
+                      type="button"
+                      title="Eliminar"
+                      (click)="eliminarUsuario(usuario)"
+                    >
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (totalPaginas() > 1) {
+            <div class="paginador">
+              <button
+                class="btn-pagina"
+                type="button"
+                [disabled]="paginaActual() === 1"
+                (click)="irAPagina(paginaActual() - 1)"
+              >
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              @for (pagina of paginas(); track pagina) {
+                <button
+                  class="btn-pagina"
+                  type="button"
+                  [class.activa]="pagina === paginaActual()"
+                  (click)="irAPagina(pagina)"
+                >
+                  {{ pagina }}
+                </button>
+              }
+              <button
+                class="btn-pagina"
+                type="button"
+                [disabled]="paginaActual() === totalPaginas()"
+                (click)="irAPagina(paginaActual() + 1)"
+              >
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          }
+
+          @if (usuariosFiltrados().length === 0 && !loading()) {
+            <div class="empty-state">
+              <i class="bi bi-people"></i>
+              <p>{{ textoBusqueda() ? 'No se encontraron usuarios' : 'No hay usuarios registrados' }}</p>
+            </div>
+          }
+
+          @if (loading()) {
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Cargando usuarios...</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    @if (modalOpen()) {
+      <div class="modal-overlay" [class.is-closing]="modalClosing()">
+        <div class="modal-panel modal-panel--wide glass-panel" [class.is-closing]="modalClosing()" [class.password-active]="modalContrasenaOpen()" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <h2>Editar usuario</h2>
+            </div>
+            <button class="btn-cerrar-modal" type="button" (click)="cerrarModal()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          @if (loadingDetalle()) {
+            <div class="modal-loading">
+              <div class="spinner"></div>
+              <span>Cargando datos...</span>
+            </div>
+          } @else {
+            <div class="card-formulario glass-panel">
+              <div class="form-grid">
+              <div class="form-group">
+                <label>Nombre completo</label>
+                <input type="text" class="form-input" [value]="formEdicion().nombreCompleto" disabled />
+              </div>
+              <div class="form-group">
+                <label>RUT</label>
+                <input type="text" class="form-input" [value]="rutEdicionFormateado()" disabled />
+              </div>
+              <div class="form-group">
+                <label>Correo</label>
+                <input type="text" class="form-input" [value]="formEdicion().correo" disabled />
+              </div>
+              <div class="form-group">
+                <label>Nombre de usuario</label>
+                <input type="text" class="form-input" [value]="formEdicion().username" disabled />
+              </div>
+              <div class="form-group">
+                <label>Tipo de Centro de Salud</label>
+                @if (esSuperAdmin()) {
+                  <input type="text" class="form-input campo-valido" value="Administración Central" disabled />
+                } @else {
+                  <select class="form-input" [ngModel]="tipoEstablecimientoSeleccionado()" (ngModelChange)="onTipoEstablecimientoChange($event)">
+                    <option value="">Selecciona un tipo de centro</option>
+                    @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
+                      <option [value]="tipo">{{ tipo }}</option>
+                    }
+                  </select>
+                }
+              </div>
+              <div class="form-group">
+                <label>Establecimiento de Salud</label>
+                @if (esSuperAdmin()) {
+                  <input type="text" class="form-input campo-valido" value="SICHCP - Nivel Central" disabled />
+                } @else {
+                  <select class="form-input" [disabled]="!tipoEstablecimientoSeleccionado()" [ngModel]="idEstablecimientoSeleccionado()" (ngModelChange)="onEstablecimientoChange($event)">
+                    <option value="">Selecciona un establecimiento</option>
+                    @for (e of establecimientosFiltradosPorTipo(); track e.id_establecimiento) {
+                      <option [value]="e.id_establecimiento">{{ e.nombre }}</option>
+                    }
+                  </select>
+                }
+              </div>
+              <div class="form-group">
+                <label>Comuna / Región</label>
+                <input type="text" class="form-input" [value]="esSuperAdmin() ? 'Santiago, Región Metropolitana' : (establecimientoDetalleSeleccionado()?.comuna || '')" disabled />
+              </div>
+              <div class="form-group">
+                <label>Dirección del Centro</label>
+                <input type="text" class="form-input" [value]="esSuperAdmin() ? 'Nivel Central, Chile' : direccionFinal()" (input)="onDireccionManualInput($event)" [disabled]="esSuperAdmin() || !!establecimientoDetalleSeleccionado()?.direccion?.trim()" />
+              </div>
+              <div class="form-group rol-group">
+                <label>Rol</label>
+                <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="form-input"
+                    [class.campo-valido]="campoValidoEdicion('rol')"
+                    [class.campo-invalido]="campoInvalidoEdicion('rol')"
+                    [ngModel]="rolTexto()"
+                    (ngModelChange)="onRolInput($event)"
+                    (blur)="onRolBlur()"
+                    (click)="toggleRolDropdown($event)"
+                    placeholder="Selecciona un rol"
+                  />
+                  @if (rolOpen()) {
+                    <div class="autocomplete-list">
+                      @for (rol of rolesFiltrados(); track rol.id_rol) {
+                        <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarRol(rol)">{{ rol.nombre }}</button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="form-group area-group">
+                <label>Área</label>
+                <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="form-input"
+                    [class.campo-valido]="campoValidoEdicion('area')"
+                    [class.campo-invalido]="campoInvalidoEdicion('area')"
+                    [disabled]="!formEdicion().id_rol || esSuperAdmin()"
+                    [ngModel]="areaTexto()"
+                    (ngModelChange)="onAreaInput($event)"
+                    (blur)="onAreaBlur()"
+                    (click)="toggleAreaDropdown($event)"
+                    placeholder="Selecciona un área"
+                    autocomplete="off"
+                  />
+                  @if (areaOpen()) {
+                    <div class="autocomplete-list">
+                      @if (areasFiltradas().length > 0) {
+                        @for (area of areasFiltradas(); track area.id_area) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarArea(area)">
+                            <span class="tipo-nombre">{{ area.nombre }}</span>
+                          </button>
+                        }
+                      } @else {
+                        <div class="autocomplete-empty">Sin coincidencias</div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              </div>
+              <div class="form-actions">
+                <button class="btn-cambiar-contrasena" type="button" (click)="abrirModalContrasena()">
+                  <i class="bi bi-key-fill"></i>
+                  Cambiar contraseña
+                </button>
+                <button class="btn-guardar" type="button" (click)="guardarUsuario()">
+                  <i class="bi bi-check-circle"></i>
+                  Guardar
+                </button>
+                <button class="btn-cancelar" type="button" (click)="cerrarModal()">
+                  <i class="bi bi-x-circle"></i>
+                  Cancelar
+                </button>
+              </div>
+
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (modalCrearOpen()) {
+      <div class="modal-overlay" [class.is-closing]="modalCrearClosing()">
+        <div class="modal-panel modal-panel--wide glass-panel" [class.is-closing]="modalCrearClosing()" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <h2>Crear usuario - {{ centroSaludSesion() }}</h2>
+            </div>
+            <button class="btn-cerrar-modal" type="button" (click)="cerrarModalCrear()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="card-formulario glass-panel">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Nombres</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('nombres')"
+                  [class.campo-invalido]="campoInvalidoCrear('nombres')"
+                  [ngModel]="formCrear().nombres"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, nombres: $event }))"
+                  placeholder="Nombres del usuario"
+                />
+              </div>
+              <div class="form-group">
+                <label>RUT</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('rut')"
+                  [class.campo-invalido]="campoInvalidoCrear('rut')"
+                  [ngModel]="formCrear().rut"
+                  (ngModelChange)="onRutInput($event)"
+                  placeholder="12.345.678-9"
+                  maxlength="12"
+                  inputmode="numeric"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="form-group">
+                <label>Apellido paterno</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('apellidoPaterno')"
+                  [class.campo-invalido]="campoInvalidoCrear('apellidoPaterno')"
+                  [ngModel]="formCrear().apellidoPaterno"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, apellidoPaterno: $event }))"
+                  placeholder="Apellido paterno"
+                />
+              </div>
+              <div class="form-group">
+                <label>Apellido materno</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('apellidoMaterno')"
+                  [class.campo-invalido]="campoInvalidoCrear('apellidoMaterno')"
+                  [ngModel]="formCrear().apellidoMaterno"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, apellidoMaterno: $event }))"
+                  placeholder="Apellido materno"
+                />
+              </div>
+              <div class="form-group">
+                <label>Correo</label>
+                <input
+                  type="email"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('correo')"
+                  [class.campo-invalido]="campoInvalidoCrear('correo')"
+                  [ngModel]="formCrear().correo"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, correo: $event }))"
+                  placeholder="correo&#64;ejemplo.com"
+                />
+              </div>
+              <div class="form-group">
+                <label>Nombre de usuario</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('username')"
+                  [class.campo-invalido]="campoInvalidoCrear('username')"
+                  [ngModel]="formCrear().username"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, username: $event }))"
+                  placeholder="Nombre de usuario"
+                />
+              </div>
+
+              <!-- SECCIÓN: Selección de Centro de Salud -->
+              <div class="form-group center-type-group">
+                <label>Tipo de Centro de Salud</label>
+                @if (esSuperAdmin()) {
+                  <input type="text" class="form-input campo-valido" [disabled]="true" value="Administración Central" />
+                } @else {
+                  <select 
+                    class="form-input" 
+                    [class.campo-valido]="campoCentroValido('tipo')"
+                    [class.campo-invalido]="campoCentroInvalido('tipo')"
+                    [ngModel]="tipoEstablecimientoSeleccionado()" 
+                    (ngModelChange)="onTipoEstablecimientoChange($event)"
+                  >
+                    <option value="">Selecciona un tipo de centro</option>
+                    @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
+                      <option [value]="tipo">{{ tipo }}</option>
+                    }
+                  </select>
+                }
+              </div>
+
+              <div class="form-group center-establishment-group">
+                <label>Establecimiento de Salud</label>
+                @if (esSuperAdmin()) {
+                  <input type="text" class="form-input campo-valido" [disabled]="true" value="SICHCP - Nivel Central" />
+                } @else {
+                  <select 
+                    class="form-input" 
+                    [class.campo-valido]="campoCentroValido('establecimiento')"
+                    [class.campo-invalido]="campoCentroInvalido('establecimiento')"
+                    [disabled]="!tipoEstablecimientoSeleccionado()"
+                    [ngModel]="idEstablecimientoSeleccionado()" 
+                    (ngModelChange)="onEstablecimientoChange($event)"
+                  >
+                    <option value="">Selecciona un establecimiento</option>
+                    @for (e of establecimientosFiltradosPorTipo(); track e.id_establecimiento) {
+                      <option [value]="e.id_establecimiento">{{ e.nombre }}</option>
+                    }
+                  </select>
+                }
+              </div>
+
+              <!-- CAMPOS AUTOCOMPLETADOS Y BLOQUEADOS (LECTURA) -->
+              <div class="form-group center-commune-group">
+                <label>Comuna / Región</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoCentroValido('comuna')"
+                  [class.campo-invalido]="campoCentroInvalido('comuna')"
+                  [disabled]="true"
+                  [value]="esSuperAdmin() ? 'Santiago, Región Metropolitana' : (establecimientoDetalleSeleccionado() ? (establecimientoDetalleSeleccionado()?.comuna + ', ' + (establecimientoDetalleSeleccionado()?.region || 'Chile')) : '')"
+                  placeholder="Se autocompleta al seleccionar centro"
+                />
+              </div>
+
+              <div class="form-group center-address-group">
+                <label>Dirección del Centro</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [class.campo-valido]="campoCentroValido('direccion')"
+                  [class.campo-invalido]="campoCentroInvalido('direccion')"
+                  [disabled]="esSuperAdmin() || !!(establecimientoDetalleSeleccionado() && establecimientoDetalleSeleccionado()?.direccion?.trim())"
+                  [value]="esSuperAdmin() ? 'Nivel Central, Chile' : direccionFinal()"
+                  (input)="onDireccionManualInput($event)"
+                  placeholder="Se autocompleta o ingresa dirección"
+                />
+              </div>
+
+              <!-- SECCIÓN: Rol y Área -->
+              <div class="form-group rol-group">
+                <label>Rol</label>
+                <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="form-input"
+                    [class.campo-valido]="campoValidoCrear('rol')"
+                    [class.campo-invalido]="campoInvalidoCrear('rol')"
+                    [ngModel]="rolTexto()"
+                    (ngModelChange)="onRolInput($event)"
+                    (blur)="onRolBlur()"
+                    (click)="toggleRolDropdown($event)"
+                    placeholder="Selecciona un rol"
+                    autocomplete="off"
+                  />
+                  @if (rolOpen()) {
+                    <div class="autocomplete-list">
+                      @if (rolesFiltrados().length > 0) {
+                        @for (rol of rolesFiltrados(); track rol.id_rol) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarRol(rol)">
+                            <span class="tipo-nombre">{{ rol.nombre }}</span>
+                          </button>
+                        }
+                      } @else {
+                        <div class="autocomplete-empty">Sin coincidencias</div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="form-group area-group">
+                <label>Área</label>
+                <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="form-input"
+                    [class.campo-valido]="campoValidoCrear('area')"
+                    [class.campo-invalido]="campoInvalidoCrear('area')"
+                    [disabled]="!formCrear().id_rol || esSuperAdmin()"
+                    [ngModel]="areaTexto()"
+                    (ngModelChange)="onAreaInput($event)"
+                    (blur)="onAreaBlur()"
+                    (click)="toggleAreaDropdown($event)"
+                    placeholder="Selecciona un área"
+                    autocomplete="off"
+                  />
+                  @if (areaOpen()) {
+                    <div class="autocomplete-list">
+                      @if (areasFiltradas().length > 0) {
+                        @for (area of areasFiltradas(); track area.id_area) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarArea(area)">
+                            <span class="tipo-nombre">{{ area.nombre }}</span>
+                          </button>
+                        }
+                      } @else {
+                        <div class="autocomplete-empty">Sin coincidencias</div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- CONTROLES DE CONTRASEÑA -->
+              <div class="form-group password-group">
+                <label>Ingrese contraseña</label>
+                <input
+                  type="password"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('password')"
+                  [class.campo-invalido]="campoInvalidoCrear('password') || contrasenasNoCoinciden()"
+                  [ngModel]="formCrear().password"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, password: $event }))"
+                  placeholder="Ingresa la contraseña"
+                />
+              </div>
+
+              <div class="form-group password-group">
+                <label>Repita Contraseña</label>
+                <input
+                  type="password"
+                  class="form-input"
+                  [class.campo-valido]="campoValidoCrear('confirmPassword')"
+                  [class.campo-invalido]="campoInvalidoCrear('confirmPassword') || contrasenasNoCoinciden()"
+                  [ngModel]="formCrear().confirmPassword"
+                  (ngModelChange)="formCrear.update(s => ({ ...s, confirmPassword: $event }))"
+                  placeholder="Repite la contraseña"
+                />
+                @if (contrasenasNoCoinciden()) {
+                  <small class="text-danger error-msg">
+                    <i class="bi bi-exclamation-circle me-1"></i>Las contraseñas no coinciden.
+                  </small>
+                }
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-guardar" type="button" (click)="crearUsuario()">
+                <i class="bi bi-person-plus"></i>
+                Crear
+              </button>
+              <button class="btn-cancelar" type="button" (click)="cerrarModalCrear()">
+                <i class="bi bi-x-circle"></i>
+                Cancelar
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    }
+
+    @if (modalContrasenaOpen()) {
+      <div class="password-modal-overlay">
+        <div class="password-modal-panel" (click)="$event.stopPropagation()">
+          <div class="password-modal-header">
+            <div>
+              <h3><i class="bi bi-key-fill password-modal-icon"></i> Cambiar contraseña</h3>
+              <p>Usuario: {{ formEdicion().username }}</p>
+            </div>
+            <button class="btn-cerrar-modal" type="button" (click)="cerrarModalContrasena()" aria-label="Cerrar cambio de contraseña">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="password-modal-body">
+            <div class="form-group">
+              <label>Ingrese contraseña</label>
+              <input
+                type="password"
+                class="form-input"
+                [class.campo-invalido]="contrasenasCambioNoCoinciden()"
+                [value]="contrasenaNueva()"
+                (input)="contrasenaNueva.set($any($event.target).value)"
+                placeholder="Ingresa la nueva contraseña"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Repita Contraseña</label>
+              <input
+                type="password"
+                class="form-input"
+                [class.campo-invalido]="contrasenasCambioNoCoinciden()"
+                [value]="contrasenaConfirmacion()"
+                (input)="contrasenaConfirmacion.set($any($event.target).value)"
+                placeholder="Repite la nueva contraseña"
+              />
+              @if (contrasenasCambioNoCoinciden()) {
+                <small class="text-danger error-msg">
+                  <i class="bi bi-exclamation-circle me-1"></i>Las contraseñas no coinciden.
+                </small>
+              }
+            </div>
+          </div>
+
+          <div class="password-modal-actions">
+            <button class="btn-guardar" type="button" (click)="cambiarContrasena()">
+              <i class="bi bi-check-circle"></i>
+              Cambiar contraseña
+            </button>
+            <button class="btn-cancelar" type="button" (click)="cerrarModalContrasena()">
+              <i class="bi bi-x-circle"></i>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

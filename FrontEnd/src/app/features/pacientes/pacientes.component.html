@@ -1,0 +1,701 @@
+<div class="gestion-clinica-container">
+  <header class="gc-header">
+    <div class="gc-header-title">
+      <i class="bi bi-hospital-fill gc-header-icon"></i>
+      <h1>Gestión Clínica</h1>
+    </div>
+
+    <nav class="gc-tabs" aria-label="Navegación de Gestión Clínica">
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'pacientes'" (click)="setTab('pacientes')">
+        <span class="tab-icon-badge icon-pacientes"><i class="bi bi-person-vcard-fill"></i></span>
+        <span>Pacientes</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'atenciones'" (click)="setTab('atenciones')">
+        <span class="tab-icon-badge icon-atenciones"><i class="bi bi-clipboard2-pulse-fill"></i></span>
+        <span>Atenciones</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'diagnosticos'" (click)="setTab('diagnosticos')">
+        <span class="tab-icon-badge icon-diagnosticos"><i class="bi bi-heart-pulse-fill"></i></span>
+        <span>Diagnósticos</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'alergias'" (click)="setTab('alergias')">
+        <span class="tab-icon-badge icon-alergias"><i class="bi bi-shield-fill-exclamation"></i></span>
+        <span>Alergias</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'medicamentos'" (click)="setTab('medicamentos')">
+        <span class="tab-icon-badge icon-medicamentos"><i class="bi bi-capsule-pill"></i></span>
+        <span>Medicamentos</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'examenes'" (click)="setTab('examenes')">
+        <span class="tab-icon-badge icon-examenes"><i class="bi bi-clipboard2-check-fill"></i></span>
+        <span>Exámenes</span>
+      </button>
+
+      <button type="button" class="tab-btn" [class.active]="tabActiva() === 'observaciones'" (click)="setTab('observaciones')">
+        <span class="tab-icon-badge icon-observaciones"><i class="bi bi-journal-medical"></i></span>
+        <span>Observaciones</span>
+      </button>
+    </nav>
+  </header>
+
+  @if (tabActiva() === 'pacientes') {
+    <div class="gc-content glass-card">
+      <section class="search-section">
+        <h2 class="search-title">Búsqueda de paciente por RUT</h2>
+        <div class="search-box-row">
+          <div class="search-input-wrapper">
+            <i class="bi bi-search input-search-icon"></i>
+            <input type="text" class="search-input" placeholder="Ej. 12.345.678-9" [value]="rutInput()" (input)="onRutInput($event)" (keyup.enter)="buscarPaciente()" />
+          </div>
+          <button type="button" class="btn-buscar" (click)="buscarPaciente()" [disabled]="cargando()">
+            @if (cargando()) {
+              <span class="btn-text-loading">Buscando<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span></span>
+            } @else {
+              <i class="bi bi-search"></i>
+              <span>Buscar</span>
+            }
+          </button>
+        </div>
+      </section>
+
+      @if (cargando()) {
+        <div class="screen-loading-overlay">
+          <div class="screen-loading-box">
+            <div class="spinner-border text-primary screen-spinner" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="screen-loading-text">Buscando paciente<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span></p>
+          </div>
+        </div>
+      }
+
+      @if (busquedaRealizada()) {
+        <section class="patient-result-card" [class.is-not-found]="!paciente()?.encontrado">
+          <div class="patient-card-header">
+            @if (paciente()?.encontrado) {
+              <div class="badge-status status-found">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Paciente encontrado</span>
+              </div>
+            } @else {
+              <div class="badge-status status-not-found">
+                <i class="bi bi-x-circle-fill"></i>
+                <span>Paciente no encontrado</span>
+              </div>
+            }
+          </div>
+
+          @if (paciente()?.encontrado) {
+            <div class="patient-card-body">
+              <div class="patient-avatar"><i class="bi bi-person-circle"></i></div>
+              <div class="patient-details">
+                <h3 class="patient-name">{{ paciente()?.nombre_completo }}</h3>
+                <p class="patient-rut"><strong>RUT:</strong> {{ formatRut(paciente()?.rut ?? null) }}</p>
+                <p class="patient-dob">
+                  <strong>Fecha de nacimiento:</strong> {{ formatFecha(paciente()?.fecha_nacimiento ?? null) }}
+                  @if (paciente()?.edad) {
+                    <span>({{ paciente()?.edad }} años)</span>
+                  }
+                </p>
+                <p class="patient-gender"><strong>Sexo:</strong> {{ paciente()?.sexo }}</p>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      <section class="indicators-grid" aria-label="Indicadores del paciente">
+        <button type="button" class="indicator-card card-blue" (click)="abrirModalRecursos('todos')">
+          <div class="indicator-icon icon-blue"><i class="bi bi-file-earmark-medical-fill"></i></div>
+          <div class="indicator-data">
+            <span class="indicator-number">{{ paciente()?.recursos_ficha ?? 0 }}</span>
+            <span class="indicator-label">Recursos de ficha</span>
+          </div>
+        </button>
+
+        <button type="button" class="indicator-card card-cyan" (click)="abrirModalRecursos('atenci')">
+          <div class="indicator-icon icon-cyan"><i class="bi bi-calendar2-check-fill"></i></div>
+          <div class="indicator-data">
+            <span class="indicator-number">{{ paciente()?.atenciones ?? 0 }}</span>
+            <span class="indicator-label">Atenciones</span>
+          </div>
+        </button>
+
+        <button type="button" class="indicator-card card-red" (click)="abrirModalRecursos('alerg')">
+          <div class="indicator-icon icon-red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+          <div class="indicator-data">
+            <span class="indicator-number">{{ paciente()?.alergias_registradas ?? 0 }}</span>
+            <span class="indicator-label">Alergias registradas</span>
+          </div>
+        </button>
+
+        <button type="button" class="indicator-card card-purple" (click)="abrirModalRecursos('medica')">
+          <div class="indicator-icon icon-purple"><i class="bi bi-capsule-pill"></i></div>
+          <div class="indicator-data">
+            <span class="indicator-number">{{ paciente()?.medicamentos_activos ?? 0 }}</span>
+            <span class="indicator-label">Medicamentos activos</span>
+          </div>
+        </button>
+      </section>
+    </div>
+  } @else {
+    <div class="gc-content glass-card">
+      <div class="resource-toolbar">
+        <div class="resource-title-wrap">
+          <i class="bi bi-clipboard2-pulse-fill resource-title-icon"></i>
+          <h2>{{ getTabNombre() }}</h2>
+        </div>
+        @if (paciente()?.encontrado) {
+          <div class="patient-mini-card">
+            <div class="patient-avatar mini-avatar"><i class="bi bi-person-circle"></i></div>
+            <div class="patient-details mini-details">
+              <h3 class="patient-name">{{ paciente()?.nombre_completo }}</h3>
+              <p class="patient-rut"><strong>RUT:</strong> {{ formatRut(paciente()?.rut ?? null) }}</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (!paciente()?.encontrado) {
+        <div class="empty-state-box">
+          <i class="bi bi-info-circle"></i>
+          <p>Primero debe buscar un paciente para gestionar {{ getTabNombre().toLowerCase() }}.</p>
+        </div>
+      } @else if (cargandoTab()) {
+        <div class="loading-box">
+          <div class="spinner-border text-primary" role="status"></div>
+          <span>Cargando registros...</span>
+        </div>
+      } @else if (tabActiva() === 'atenciones') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar atención</h3>
+            <div class="form-grid">
+              <label>
+                <span>Tipo de atención</span>
+                <input type="text" [ngModel]="formAtenciones().tipo_atencion" (ngModelChange)="actualizarCampo('atenciones', 'tipo_atencion', $event)" />
+              </label>
+              <label>
+                <span>Estado</span>
+                <select [ngModel]="formAtenciones().estado" (ngModelChange)="actualizarCampo('atenciones', 'estado', $event)">
+                  @for (estado of estadosClinica.atenciones; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+              <label class="full">
+                <span>Motivo de consulta</span>
+                <textarea rows="3" [ngModel]="formAtenciones().motivo_consulta" (ngModelChange)="actualizarCampo('atenciones', 'motivo_consulta', $event)"></textarea>
+              </label>
+              <label>
+                <span>Fecha inicio</span>
+                <input type="datetime-local" [ngModel]="formAtenciones().fecha_inicio" (ngModelChange)="actualizarCampo('atenciones', 'fecha_inicio', $event)" />
+              </label>
+              <label>
+                <span>Fecha fin</span>
+                <input type="datetime-local" [ngModel]="formAtenciones().fecha_fin" (ngModelChange)="actualizarCampo('atenciones', 'fecha_fin', $event)" />
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarAtencion()">Guardar atención</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Historial</h3>
+            @if (atenciones().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(atenciones(), paginaAtenciones()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.tipo_atencion || '—' }}</td>
+                        <td>{{ item.estado || '—' }}</td>
+                        <td>{{ formatFechaHora(item.fecha_inicio || item.fecha_registro) }}</td>
+                        <td>{{ item.motivo_consulta || 'Sin detalle' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (atenciones().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === 1" (click)="cambiarPagina('atenciones', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(atenciones()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaAtenciones()" (click)="irAPagina('atenciones', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === totalPaginasLista(atenciones())" (click)="cambiarPagina('atenciones', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-clipboard2-x"></i>
+                <p>No hay atenciones registradas.</p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (tabActiva() === 'diagnosticos') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar diagnóstico</h3>
+            <div class="form-grid">
+              <label>
+                <span>Código CIE10</span>
+                <input type="text" [ngModel]="formDiagnosticos().codigo_cie10" (ngModelChange)="actualizarCampo('diagnosticos', 'codigo_cie10', $event)" />
+              </label>
+              <label>
+                <span>Estado</span>
+                <select [ngModel]="formDiagnosticos().estado" (ngModelChange)="actualizarCampo('diagnosticos', 'estado', $event)">
+                  @for (estado of estadosClinica.diagnosticos; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+              <label class="full">
+                <span>Descripción</span>
+                <textarea rows="3" [ngModel]="formDiagnosticos().descripcion" (ngModelChange)="actualizarCampo('diagnosticos', 'descripcion', $event)"></textarea>
+              </label>
+              <label class="full">
+                <span>Fecha diagnóstico</span>
+                <input type="date" [ngModel]="formDiagnosticos().fecha_diagnostico" (ngModelChange)="actualizarCampo('diagnosticos', 'fecha_diagnostico', $event)" />
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarDiagnostico()">Guardar diagnóstico</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Diagnósticos recientes</h3>
+            @if (diagnosticos().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(diagnosticos(), paginaDiagnosticos()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.codigo_cie10 || '—' }}</td>
+                        <td>{{ item.estado || '—' }}</td>
+                        <td>{{ formatFecha(item.fecha_diagnostico || item.fecha_registro) }}</td>
+                        <td>{{ item.descripcion || 'Sin detalle' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (diagnosticos().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaDiagnosticos() === 1" (click)="cambiarPagina('diagnosticos', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(diagnosticos()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaDiagnosticos()" (click)="irAPagina('diagnosticos', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaDiagnosticos() === totalPaginasLista(diagnosticos())" (click)="cambiarPagina('diagnosticos', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-heart-pulse"></i>
+                <p>No hay diagnósticos registrados.</p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (tabActiva() === 'alergias') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar alergia</h3>
+            <div class="form-grid">
+              <label>
+                <span>Alérgeno</span>
+                <input type="text" [ngModel]="formAlergias().alergeno" (ngModelChange)="actualizarCampo('alergias', 'alergeno', $event)" />
+              </label>
+              <label>
+                <span>Tipo de reacción</span>
+                <input type="text" [ngModel]="formAlergias().tipo_reaccion" (ngModelChange)="actualizarCampo('alergias', 'tipo_reaccion', $event)" />
+              </label>
+              <label>
+                <span>Criticidad</span>
+                <select [ngModel]="formAlergias().criticidad" (ngModelChange)="actualizarCampo('alergias', 'criticidad', $event)">
+                  <option value="Baja">Baja</option>
+                  <option value="Moderada">Moderada</option>
+                  <option value="Alta">Alta</option>
+                </select>
+              </label>
+              <label class="full">
+                <span>Observación</span>
+                <textarea rows="3" [ngModel]="formAlergias().observacion" (ngModelChange)="actualizarCampo('alergias', 'observacion', $event)"></textarea>
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarAlergia()">Guardar alergia</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Alergias</h3>
+            @if (alergias().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Alérgeno</th>
+                      <th>Reacción</th>
+                      <th>Criticidad</th>
+                      <th>Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(alergias(), paginaAlergias()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.alergeno || '—' }}</td>
+                        <td>{{ item.tipo_reaccion || '—' }}</td>
+                        <td>{{ item.criticidad || '—' }}</td>
+                        <td>{{ item.observacion || 'Sin observación' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (alergias().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaAlergias() === 1" (click)="cambiarPagina('alergias', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(alergias()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaAlergias()" (click)="irAPagina('alergias', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaAlergias() === totalPaginasLista(alergias())" (click)="cambiarPagina('alergias', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-shield-fill-exclamation"></i>
+                <p>No hay alergias registradas.</p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (tabActiva() === 'medicamentos') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar medicamento</h3>
+            <div class="form-grid">
+              <label class="full">
+                <span>Nombre medicamento</span>
+                <input type="text" [ngModel]="formMedicamentos().nombre_medicamento" (ngModelChange)="actualizarCampo('medicamentos', 'nombre_medicamento', $event)" />
+              </label>
+              <label>
+                <span>Dosis</span>
+                <input type="text" [ngModel]="formMedicamentos().dosis" (ngModelChange)="actualizarCampo('medicamentos', 'dosis', $event)" />
+              </label>
+              <label>
+                <span>Frecuencia</span>
+                <input type="text" [ngModel]="formMedicamentos().frecuencia" (ngModelChange)="actualizarCampo('medicamentos', 'frecuencia', $event)" />
+              </label>
+              <label>
+                <span>Vía administración</span>
+                <input type="text" [ngModel]="formMedicamentos().via_administracion" (ngModelChange)="actualizarCampo('medicamentos', 'via_administracion', $event)" />
+              </label>
+              <label>
+                <span>Estado</span>
+                <select [ngModel]="formMedicamentos().estado" (ngModelChange)="actualizarCampo('medicamentos', 'estado', $event)">
+                  @for (estado of estadosClinica.medicamentos; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarMedicamento()">Guardar medicamento</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Medicamentos</h3>
+            @if (medicamentos().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Medicamento</th>
+                      <th>Dosis</th>
+                      <th>Frecuencia</th>
+                      <th>Vía</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(medicamentos(), paginaMedicamentos()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.nombre_medicamento || '—' }}</td>
+                        <td>{{ item.dosis || '—' }}</td>
+                        <td>{{ item.frecuencia || '—' }}</td>
+                        <td>{{ item.via_administracion || '—' }}</td>
+                        <td>{{ item.estado || '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (medicamentos().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaMedicamentos() === 1" (click)="cambiarPagina('medicamentos', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(medicamentos()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaMedicamentos()" (click)="irAPagina('medicamentos', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaMedicamentos() === totalPaginasLista(medicamentos())" (click)="cambiarPagina('medicamentos', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-capsule-pill"></i>
+                <p>No hay medicamentos registrados.</p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (tabActiva() === 'examenes') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar examen</h3>
+            <div class="form-grid">
+              <label>
+                <span>Tipo de examen</span>
+                <input type="text" [ngModel]="formExamenes().tipo_examen" (ngModelChange)="actualizarCampo('examenes', 'tipo_examen', $event)" />
+              </label>
+              <label>
+                <span>Estado</span>
+                <select [ngModel]="formExamenes().estado" (ngModelChange)="actualizarCampo('examenes', 'estado', $event)">
+                  @for (estado of estadosClinica.examenes; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+              <label class="full">
+                <span>Resultado</span>
+                <textarea rows="3" [ngModel]="formExamenes().resultado" (ngModelChange)="actualizarCampo('examenes', 'resultado', $event)"></textarea>
+              </label>
+              <label class="full">
+                <span>Fecha examen</span>
+                <input type="date" [ngModel]="formExamenes().fecha_examen" (ngModelChange)="actualizarCampo('examenes', 'fecha_examen', $event)" />
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarExamen()">Guardar examen</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Exámenes</h3>
+            @if (examenes().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(examenes(), paginaExamenes()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.tipo_examen || '—' }}</td>
+                        <td>{{ item.estado || '—' }}</td>
+                        <td>{{ formatFecha(item.fecha_examen || item.fecha_registro) }}</td>
+                        <td>{{ item.resultado || 'Sin resultado' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (examenes().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaExamenes() === 1" (click)="cambiarPagina('examenes', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(examenes()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaExamenes()" (click)="irAPagina('examenes', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaExamenes() === totalPaginasLista(examenes())" (click)="cambiarPagina('examenes', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-clipboard2-check-fill"></i>
+                <p>No hay exámenes registrados.</p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (tabActiva() === 'observaciones') {
+        <div class="resource-grid">
+          <div class="resource-card">
+            <h3>Registrar observación</h3>
+            <div class="form-grid">
+              <label>
+                <span>Tipo</span>
+                <select [ngModel]="formObservaciones().tipo_observacion" (ngModelChange)="actualizarCampo('observaciones', 'tipo_observacion', $event)">
+                  @for (estado of estadosClinica.observaciones; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Unidad medida</span>
+                <input type="text" [ngModel]="formObservaciones().unidad_medida" (ngModelChange)="actualizarCampo('observaciones', 'unidad_medida', $event)" />
+              </label>
+              <label class="full">
+                <span>Valor</span>
+                <textarea rows="3" [ngModel]="formObservaciones().valor" (ngModelChange)="actualizarCampo('observaciones', 'valor', $event)"></textarea>
+              </label>
+              <label class="full">
+                <span>Fecha observación</span>
+                <input type="datetime-local" [ngModel]="formObservaciones().fecha_observacion" (ngModelChange)="actualizarCampo('observaciones', 'fecha_observacion', $event)" />
+              </label>
+            </div>
+            <button type="button" class="btn-save" (click)="guardarObservacion()">Guardar observación</button>
+          </div>
+
+          <div class="resource-card list-card">
+            <h3>Observaciones clínicas</h3>
+            @if (observaciones().length) {
+              <div class="tabla-wrapper">
+                <table class="tabla-banners">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Valor</th>
+                      <th>Unidad</th>
+                      <th>Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of paginarLista(observaciones(), paginaObservaciones()); track item.id_registro || $index) {
+                      <tr>
+                        <td>{{ item.tipo_observacion || '—' }}</td>
+                        <td>{{ item.valor || '—' }}</td>
+                        <td>{{ item.unidad_medida || '—' }}</td>
+                        <td>{{ formatFechaHora(item.fecha_observacion || item.fecha_registro) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (observaciones().length > PAGE_SIZE) {
+                <div class="paginador">
+                  <button class="btn-pagina" type="button" [disabled]="paginaObservaciones() === 1" (click)="cambiarPagina('observaciones', -1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (pagina of getPaginasLista(observaciones()); track pagina) {
+                    <button class="btn-pagina" type="button" [class.activa]="pagina === paginaObservaciones()" (click)="irAPagina('observaciones', pagina)">{{ pagina }}</button>
+                  }
+                  <button class="btn-pagina" type="button" [disabled]="paginaObservaciones() === totalPaginasLista(observaciones())" (click)="cambiarPagina('observaciones', 1)"><i class="bi bi-chevron-right"></i></button>
+                </div>
+              }
+            } @else {
+              <div class="empty-state-box small">
+                <i class="bi bi-journal-medical"></i>
+                <p>No hay observaciones registradas.</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (modalRecursosAbierto()) {
+    <div class="modal-overlay" (click)="cerrarModalRecursos()">
+      <div class="modal-container modal-container-lg" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-titulo">
+            <i class="bi bi-file-earmark-medical-fill modal-header-icon"></i>
+            Ficha Clínica Integrada — {{ paciente()?.nombre_completo || 'Paciente' }}
+            <span class="fhir-badge-header">HL7 FHIR R4</span>
+          </h3>
+          <button class="modal-close" type="button" (click)="cerrarModalRecursos()" aria-label="Cerrar modal">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="modal-filters-bar">
+          <div class="filter-pills">
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'todos'" (click)="setFiltroTipoRecurso('todos')">Todos</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'atenci'" (click)="setFiltroTipoRecurso('atenci')">Atenciones</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'diagn'" (click)="setFiltroTipoRecurso('diagn')">Diagnósticos</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'alerg'" (click)="setFiltroTipoRecurso('alerg')">Alergias</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'medica'" (click)="setFiltroTipoRecurso('medica')">Medicamentos</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'exam'" (click)="setFiltroTipoRecurso('exam')">Exámenes</button>
+            <button type="button" class="filter-pill" [class.active]="filtroTipoRecurso() === 'observa'" (click)="setFiltroTipoRecurso('observa')">Observaciones</button>
+          </div>
+          <div class="filter-search-wrapper">
+            <i class="bi bi-search filter-search-icon"></i>
+            <input type="search" class="filter-search-input" placeholder="Filtrar por detalle o centro..." [value]="textoFiltroRecurso()" (input)="onTextoFiltroInput($event)" />
+          </div>
+        </div>
+
+        <div class="modal-body">
+          @if (recursosCargando()) {
+            <div class="modal-cargando">
+              <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+              <span>Cargando recursos de la ficha clínica...</span>
+            </div>
+          } @else if (recursosFiltrados().length === 0) {
+            <div class="modal-empty-state">
+              <i class="bi bi-inbox empty-icon"></i>
+              <p>No se encontraron registros en la ficha clínica para los filtros seleccionados.</p>
+            </div>
+          } @else {
+            <table class="modal-tabla">
+              <thead>
+                <tr>
+                  <th>Fecha / Hora</th>
+                  <th>Tipo de Recurso</th>
+                  <th>Estándar FHIR</th>
+                  <th>Descripción / Detalle</th>
+                  <th>Establecimiento Origen</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of recursosPaginados(); track item.id_recurso; let i = $index) {
+                  <tr [style.--fila-index]="i">
+                    <td class="col-fecha">{{ formatFechaHora(item.fecha) }}</td>
+                    <td>
+                      <span class="type-badge" [ngClass]="getBadgeColorClass(item.tipo_recurso)">
+                        <i class="bi" [ngClass]="getFhirIconClass(item.codigo_fhir)"></i>
+                        {{ item.tipo_recurso }}
+                      </span>
+                    </td>
+                    <td><code class="fhir-code">{{ item.codigo_fhir }}</code></td>
+                    <td class="col-desc">{{ item.descripcion }}</td>
+                    <td class="col-origen"><i class="bi bi-building me-1 opacity-75"></i>{{ item.establecimiento_origen }}</td>
+                    <td><span class="status-chip">{{ item.estado }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+
+        <div class="modal-footer-row">
+          <div class="modal-paginacion">
+            <span class="paginacion-info">Página {{ paginaRecursos() }} de {{ totalPaginasRecursos() }} (Total: {{ recursosFiltrados().length }} registros)</span>
+            <div class="paginacion-controles">
+              <button type="button" class="btn-pag" [disabled]="paginaRecursos() <= 1" (click)="cambiarPaginaRecursos(-1)"><i class="bi bi-chevron-left"></i></button>
+              <button type="button" class="btn-pag" [disabled]="paginaRecursos() >= totalPaginasRecursos()" (click)="cambiarPaginaRecursos(1)"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+          <button type="button" class="btn-cerrar-modal" (click)="cerrarModalRecursos()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

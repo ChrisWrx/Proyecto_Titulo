@@ -1,0 +1,149 @@
+<div class="container-fluid">
+  <h1 class="page-title">
+    <i class="bi bi-shield-check"></i> Monitoreo
+  </h1>
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
+  }
+
+  @if (error) {
+    <div class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <div>
+      @if (status) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <h5 class="mb-1">
+                <i class="bi bi-info-circle-fill"></i>
+                Estado del Sistema
+              </h5>
+              <p class="mb-0">{{ status.status_message }}</p>
+            </div>
+          </div>
+        </div>
+      }
+      @if (status) {
+        <div class="row mb-4">
+          <div class="col-md-4 mb-3">
+            <div class="card metric-card">
+              <i class="bi bi-bell-fill" style="font-size: 32px; color: var(--primary-blue);"></i>
+              <div class="metric-value">{{ status.alertas_activas.total }}</div>
+              <div class="metric-label">Alertas activas</div>
+            </div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <div class="card metric-card">
+              <i class="bi bi-exclamation-triangle-fill" style="font-size: 32px; color: var(--primary-blue-light);"></i>
+              <div class="metric-value">{{ status.alertas_activas.criticas }}</div>
+              <div class="metric-label">Críticas</div>
+            </div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <div class="card metric-card">
+              <i class="bi bi-exclamation-circle-fill" style="font-size: 32px; color: var(--primary-blue-light);"></i>
+              <div class="metric-value">{{ status.alertas_activas.advertencias }}</div>
+              <div class="metric-label">Advertencias</div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (drift) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-activity"></i>
+                Detección de Drift
+              </div>
+              <p class="mb-2"><strong>Drift detectado:</strong> {{ drift.drift_detectado ? 'Sí' : 'No' }}</p>
+              <p class="mb-2"><strong>Severidad global:</strong> {{ drift.severidad_global }}</p>
+              <p class="mb-0"><strong>Recomendación:</strong> {{ drift.recomendacion }}</p>
+            </div>
+          </div>
+        </div>
+      }
+      @if (alerts) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-list-check"></i>
+                Alertas
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Tipo</th>
+                      <th>Categoría</th>
+                      <th>Mensaje</th>
+                      <th>Activa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of alerts.alertas; track a) {
+                      <tr>
+                        <td>{{ a.timestamp }}</td>
+                        <td><strong>{{ a.tipo }}</strong></td>
+                        <td>{{ a.categoria }}</td>
+                        <td>{{ a.mensaje }}</td>
+                        <td>{{ a.activa ? 'Sí' : 'No' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (history) {
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-clock-history"></i>
+                Historial de Drift
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Drift</th>
+                      <th>Severidad</th>
+                      <th>Features con drift</th>
+                      <th>% Drift</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of history.history; track r) {
+                      <tr>
+                        <td>{{ r.timestamp }}</td>
+                        <td>{{ r.drift_detectado ? 'Sí' : 'No' }}</td>
+                        <td>{{ r.severidad }}</td>
+                        <td>{{ r.n_features_drift }}</td>
+                        <td>{{ r.pct_features_drift | number:'1.1-1' }}%</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,72 @@
+<div class="container-fluid">
+  <h1 class="page-title">
+    <i class="bi bi-diagram-2-fill"></i> Explicabilidad (SHAP)
+  </h1>
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
+  }
+
+  @if (error) {
+    <div class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+  }
+
+  @if (!loading && !error && shap) {
+    <div>
+      <div class="alert alert-info mb-4">
+        <h5 class="mb-1">
+          <i class="bi bi-info-circle-fill"></i>
+          Interpretación Global del Modelo
+        </h5>
+        <p class="mb-0">{{ shap.descripcion }}</p>
+      </div>
+      <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+          <div class="card">
+            <div class="card-title">
+              <i class="bi bi-bar-chart-fill"></i>
+              Top 5 Features
+            </div>
+            <div class="chart-container">
+              <canvas id="shapTopChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card">
+            <div class="card-title">
+              <i class="bi bi-table"></i>
+              Ranking Completo
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Feature</th>
+                    <th>Importancia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (f of shap.features; track f; let i = $index) {
+                    <tr>
+                      <td>{{ i + 1 }}</td>
+                      <td><strong>{{ f.feature }}</strong></td>
+                      <td>{{ f.importance | number:'1.4-6' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

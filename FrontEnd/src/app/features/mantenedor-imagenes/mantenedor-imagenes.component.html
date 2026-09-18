@@ -1,0 +1,230 @@
+<div class="mantenedor-shell">
+  <div class="mantenedor-container">
+    <div class="mantenedor-header">
+      <h1>Mantenedor de Imágenes</h1>
+      <p>Gestiona los banners y carruseles del sistema</p>
+    </div>
+
+    <div class="mantenedor-content">
+      <div class="section-cargador">
+        <div class="card-cargador glass-panel">
+          <h2>Cargar imagen</h2>
+          <div
+            class="dropzone"
+            [class.active]="dragActive()"
+            [class.campo-valido]="campoValido('imagen')"
+            [class.campo-invalido]="campoInvalido('imagen')"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+          >
+            <div class="dropzone-content">
+              <i class="bi bi-cloud-arrow-up"></i>
+              <p class="dropzone-text">
+                Arrastra tu imagen aquí o <span class="link-upload">selecciona</span>
+              </p>
+              <p class="dropzone-hint">PNG, JPG hasta 10MB</p>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              (change)="onFileSelected($event)"
+              style="display: none"
+              #fileInput
+            />
+          </div>
+          <button
+            class="btn-seleccionar"
+            (click)="fileInput.click()"
+            type="button"
+          >
+            <i class="bi bi-folder-plus"></i>
+            Seleccionar archivo
+          </button>
+        </div>
+
+        @if (previewImage()) {
+          <div class="card-preview glass-panel">
+            <h3>Vista previa</h3>
+            <img [src]="previewImage()" alt="Vista previa" class="preview-img" />
+          </div>
+        }
+      </div>
+
+      <div class="section-formulario">
+        <div class="card-formulario glass-panel">
+          <h2>{{ editingId() ? 'Editar banner' : 'Nuevo banner' }}</h2>
+
+          <div class="form-group">
+            <label>Tipo de banner</label>
+            <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+              <input
+                type="text"
+                class="form-input"
+                [class.campo-valido]="campoValido('tipo_banner')"
+                [class.campo-invalido]="campoInvalido('tipo_banner')"
+                [ngModel]="tipoBannerTexto()"
+                (ngModelChange)="onTipoBannerInput($event)"
+                (blur)="onTipoBannerBlur()"
+                (click)="toggleTipoBannerDropdown($event)"
+                placeholder="Selecciona un tipo de banner"
+                autocomplete="off"
+              />
+              @if (autocompleteOpen()) {
+                <div class="autocomplete-list glass-panel">
+                  @if (tiposFiltrados().length > 0) {
+                    @for (tipo of tiposFiltrados(); track tipo.id_tipo_banner) {
+                      <button
+                        class="autocomplete-item"
+                        type="button"
+                        (click)="seleccionarTipoBanner(tipo)"
+                      >
+                        <span class="tipo-nombre">{{ tipo.nombre }}</span>
+                        <span class="tipo-desc">{{ tipo.descripcion }}</span>
+                      </button>
+                    }
+                  } @else {
+                    <div class="autocomplete-empty">Sin coincidencias</div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Título</label>
+            <input
+              type="text"
+              [ngModel]="formData().titulo"
+              (ngModelChange)="formData.update(s => ({ ...s, titulo: $event }))"
+              class="form-input"
+              [class.campo-valido]="campoValido('titulo')"
+              [class.campo-invalido]="campoInvalido('titulo')"
+              placeholder="Título del banner"
+              maxlength="150"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Descripción</label>
+            <textarea
+              [ngModel]="formData().descripcion"
+              (ngModelChange)="formData.update(s => ({ ...s, descripcion: $event }))"
+              class="form-input form-textarea"
+              [class.campo-valido]="campoValido('descripcion')"
+              [class.campo-invalido]="campoInvalido('descripcion')"
+              placeholder="Descripción breve"
+              maxlength="500"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Orden <span class="label-hint">(1 al 4)</span></label>
+              <input
+                type="number"
+                [ngModel]="formData().orden"
+                (ngModelChange)="formData.update(s => ({ ...s, orden: +$event }))"
+                class="form-input"
+                [class.campo-valido]="campoValido('orden')"
+                [class.campo-invalido]="campoInvalido('orden')"
+                min="1"
+                max="4"
+                (input)="clampOrden($event)"
+              />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button
+              class="btn-guardar"
+              (click)="guardarBanner()"
+              type="button"
+            >
+              <i class="bi bi-check-circle"></i>
+              {{ editingId() ? 'Actualizar' : 'Crear' }}
+            </button>
+            <button
+              class="btn-cancelar"
+              (click)="cancelarEdicion()"
+              type="button"
+            >
+              <i class="bi bi-x-circle"></i>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-tabla">
+      <div class="card-tabla glass-panel">
+        <h2>Banners registrados</h2>
+        <div class="tabla-wrapper">
+          <table class="tabla-banners">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Título</th>
+                <th>Descripción</th>
+                <th>Orden</th>
+                <th>Imagen</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (banner of banners(); track banner.id_banner) {
+                <tr>
+                  <td>{{ banner.tipo_banner }}</td>
+                  <td>{{ banner.titulo }}</td>
+                  <td>{{ banner.descripcion }}</td>
+                  <td class="text-center">{{ banner.orden }}</td>
+                  <td class="text-center">
+                    <img
+                      [src]="banner.url_imagen"
+                      [alt]="banner.nombre_imagen"
+                      class="tabla-img"
+                    />
+                  </td>
+                  <td class="acciones">
+                    <button
+                      class="btn-icon btn-editar"
+                      (click)="editarBanner(banner)"
+                      title="Editar"
+                      type="button"
+                    >
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button
+                      class="btn-icon btn-eliminar"
+                      (click)="eliminarBanner(banner.id_banner)"
+                      title="Eliminar"
+                      type="button"
+                    >
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (banners().length === 0 && !loading()) {
+            <div class="empty-state">
+              <i class="bi bi-image"></i>
+              <p>No hay banners registrados</p>
+            </div>
+          }
+
+          @if (loading()) {
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Cargando banners...</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

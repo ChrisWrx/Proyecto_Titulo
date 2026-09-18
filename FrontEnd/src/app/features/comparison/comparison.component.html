@@ -1,0 +1,248 @@
+<div class="container-fluid">
+  <h1 class="page-title">
+    <i class="bi bi-bar-chart-line"></i> Comparación de Modelos
+  </h1>
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
+  }
+
+  @if (error) {
+    <div class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <div>
+      @if (mlModels.length > 0) {
+        <div class="alert alert-success mb-4">
+          <h5 class="mb-2">
+            <i class="bi bi-trophy-fill"></i> Análisis Comparativo de Modelos ML
+          </h5>
+          <p class="mb-0">
+            {{ mlDescripcion || 'Comparación de modelos ML' }}
+          </p>
+        </div>
+      }
+      @if (mlModels.length > 0) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-table"></i>
+                Tabla Comparativa (ML)
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Ranking</th>
+                      <th>Modelo</th>
+                      <th>Accuracy</th>
+                      <th>Precision</th>
+                      <th>Recall</th>
+                      <th>F1-Score</th>
+                      <th>AUC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (model of mlModels; track model; let i = $index) {
+                      <tr>
+                        <td>
+                          <span class="badge bg-primary" style="font-size: 14px;">{{ i + 1 }}</span>
+                        </td>
+                        <td>
+                          <strong>{{ model.name }}</strong>
+                          @if (i === 0) {
+                            <span class="badge-best ms-2">MEJOR</span>
+                          }
+                        </td>
+                        <td>{{ formatPercent(model.accuracy) }}</td>
+                        <td>{{ formatPercent(model.precision) }}</td>
+                        <td>{{ formatPercent(model.recall) }}</td>
+                        <td>{{ formatPercent(model.f1) }}</td>
+                        <td>{{ formatPercent(model.auc) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (mlModels.length > 0) {
+        <div class="row mb-4">
+          <div class="col-lg-6 mb-4">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-bar-chart-fill"></i>
+                Comparación de Métricas (ML)
+              </div>
+              <div class="chart-container">
+                <canvas id="comparisonBarChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 mb-4">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-radar"></i>
+                Radar Chart - Vista 360° (ML)
+              </div>
+              <div class="chart-container">
+                <canvas id="radarComparisonChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (mlModels.length > 0) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-activity"></i>
+                Curvas ROC (ML)
+              </div>
+              <div class="chart-container" style="height: 450px;">
+                <canvas id="rocCurveChart"></canvas>
+              </div>
+              <div class="mt-3 p-3" style="background-color: var(--bg-light-gray); border-radius: 8px;">
+                <h6 style="color: var(--primary-blue);">
+                  <i class="bi bi-info-circle-fill"></i> Interpretación de Curvas ROC
+                </h6>
+                <p class="mb-2" style="font-size: 14px;">
+                  Las curvas ROC representan la relación entre la Tasa de Verdaderos Positivos (TPR)
+                  y la Tasa de Falsos Positivos (FPR) en diferentes umbrales de clasificación.
+                </p>
+                <ul style="font-size: 14px; margin-bottom: 0;">
+                  <li><strong>AUC = 1.0:</strong> Clasificador perfecto</li>
+                  <li><strong>AUC = 0.5:</strong> Clasificador aleatorio (línea diagonal)</li>
+                  <li><strong>Mejor modelo:</strong> Curva más alejada de la diagonal, mayor área bajo la curva</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (dlArchitectures.length > 0) {
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-diagram-3-fill"></i>
+                Comparación de Arquitecturas DL
+              </div>
+              <p class="text-muted mb-3">{{ dlDescripcion }}</p>
+              <div class="row">
+                <div class="col-lg-7 mb-4">
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Arquitectura</th>
+                          <th>Accuracy</th>
+                          <th>Precision</th>
+                          <th>Recall</th>
+                          <th>F1-Score</th>
+                          <th>AUC</th>
+                          <th>Parámetros</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (a of dlArchitectures; track a) {
+                          <tr>
+                            <td><strong>{{ a.modelo }}</strong></td>
+                            <td>{{ formatPercent(a.accuracy) }}</td>
+                            <td>{{ formatPercent(a.precision) }}</td>
+                            <td>{{ formatPercent(a.recall) }}</td>
+                            <td>{{ formatPercent(a.f1_score) }}</td>
+                            <td>{{ formatPercent(a.roc_auc) }}</td>
+                            <td>{{ a.parametros_totales }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="col-lg-5 mb-4">
+                  <div class="card" style="box-shadow: none;">
+                    <div class="card-title">
+                      <i class="bi bi-bar-chart-fill"></i>
+                      F1-Score (DL)
+                    </div>
+                    <div class="chart-container">
+                      <canvas id="dlBarChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      @if (balanceoTecnicas.length > 0) {
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-title">
+                <i class="bi bi-sliders"></i>
+                Impacto de Técnicas de Balanceo
+              </div>
+              <p class="text-muted mb-3">{{ balanceoDescripcion }}</p>
+              <div class="row">
+                <div class="col-lg-7 mb-4">
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Técnica</th>
+                          <th>Ratio</th>
+                          <th>Accuracy</th>
+                          <th>Precision</th>
+                          <th>Recall</th>
+                          <th>F1-Score</th>
+                          <th>AUC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (t of balanceoTecnicas; track t) {
+                          <tr>
+                            <td><strong>{{ t.tecnica }}</strong></td>
+                            <td>{{ t.ratio_balanceo | number:'1.2-2' }}</td>
+                            <td>{{ formatPercent(t.accuracy) }}</td>
+                            <td>{{ formatPercent(t.precision) }}</td>
+                            <td>{{ formatPercent(t.recall) }}</td>
+                            <td>{{ formatPercent(t.f1_score) }}</td>
+                            <td>{{ formatPercent(t.roc_auc) }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="col-lg-5 mb-4">
+                  <div class="card" style="box-shadow: none;">
+                    <div class="card-title">
+                      <i class="bi bi-bar-chart-fill"></i>
+                      F1-Score (Balanceo)
+                    </div>
+                    <div class="chart-container">
+                      <canvas id="balanceoBarChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

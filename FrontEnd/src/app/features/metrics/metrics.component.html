@@ -1,0 +1,122 @@
+<div class="container-fluid">
+  <h1 class="page-title">
+    <i class="bi bi-graph-up"></i> Métricas del Modelo
+  </h1>
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
+  }
+
+  @if (error) {
+    <div class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+  }
+
+  @if (!loading && !error && metrics) {
+    <div>
+      <div class="alert alert-info mb-4">
+        <h5 class="mb-1">
+          <i class="bi bi-cpu-fill"></i> Modelo: <strong>{{ metrics.modelo }}</strong>
+        </h5>
+        <p class="mb-0">Métricas de evaluación del modelo de mejor desempeño</p>
+      </div>
+      <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-3">
+          <div class="card metric-card">
+            <i class="bi bi-bullseye" style="font-size: 32px; color: var(--primary-blue);"></i>
+            <div class="metric-value">{{ formatPercent(getMetric('accuracy')) }}</div>
+            <div class="metric-label">Accuracy</div>
+            <small class="text-muted">Exactitud general del modelo</small>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+          <div class="card metric-card">
+            <i class="bi bi-crosshair" style="font-size: 32px; color: var(--primary-blue-light);"></i>
+            <div class="metric-value">{{ formatPercent(getMetric('precision')) }}</div>
+            <div class="metric-label">Precision</div>
+            <small class="text-muted">Precisión en predicciones positivas</small>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+          <div class="card metric-card">
+            <i class="bi bi-arrow-repeat" style="font-size: 32px; color: var(--primary-blue-light);"></i>
+            <div class="metric-value">{{ formatPercent(getMetric('recall')) }}</div>
+            <div class="metric-label">Recall</div>
+            <small class="text-muted">Sensibilidad del modelo</small>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+          <div class="card metric-card">
+            <i class="bi bi-calculator" style="font-size: 32px; color: var(--primary-blue-light);"></i>
+            <div class="metric-value">{{ formatPercent(getMetric('f1_score')) }}</div>
+            <div class="metric-label">F1-Score</div>
+            <small class="text-muted">Media armónica</small>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-8 mb-4">
+          <div class="card">
+            <div class="card-title">
+              <i class="bi bi-bar-chart-line-fill"></i>
+              Visualización de Métricas
+            </div>
+            <div class="chart-container">
+              <canvas id="metricsBarChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+          <div class="card">
+            <div class="card-title">
+              <i class="bi bi-pie-chart-fill"></i>
+              AUC Score
+            </div>
+            <div class="chart-container">
+              <canvas id="doughnutChart"></canvas>
+            </div>
+            <div class="text-center mt-3">
+              <h3 style="color: var(--primary-blue); font-weight: 700;">{{ formatPercent(getMetric('roc_auc')) }}</h3>
+              <p class="text-muted mb-0">Área Bajo la Curva ROC</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-title">
+              <i class="bi bi-info-circle-fill"></i>
+              Interpretación de Métricas
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <h6 style="color: var(--primary-blue);">
+                  <i class="bi bi-check-circle"></i> Fortalezas del Modelo
+                </h6>
+                <ul>
+                  <li><strong>AUC excelente ({{ formatPercent(getMetric('roc_auc')) }}):</strong> Gran capacidad discriminatoria entre clases.</li>
+                  <li><strong>Accuracy alta ({{ formatPercent(getMetric('accuracy')) }}):</strong> Buen desempeño general en predicciones.</li>
+                </ul>
+              </div>
+              <div class="col-md-6 mb-3">
+                <h6 style="color: var(--warning);">
+                  <i class="bi bi-exclamation-triangle"></i> Áreas de Mejora
+                </h6>
+                <ul>
+                  <li><strong>Recall moderado ({{ formatPercent(getMetric('recall')) }}):</strong> Oportunidad de mejorar detección de casos positivos.</li>
+                  <li>Se recomienda ajustar threshold de clasificación o balanceo de datos.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
