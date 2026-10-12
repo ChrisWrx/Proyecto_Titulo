@@ -1,0 +1,46 @@
+<div class="dp">
+  <button type="button" class="dp-trigger" [class.abierto]="abierto()" [class.invalido]="invalido()" [class.compacto]="compacto()" (click)="alternar()">
+    <span [class.dp-placeholder]="!value()">{{ texto() }}</span>
+    <i class="bi bi-calendar3"></i>
+  </button>
+
+  @if (abierto()) {
+    <div class="dp-popup">
+      <div class="dp-header">
+        <button type="button" class="dp-nav" (click)="cambiarMes(-1)"><i class="bi bi-chevron-left"></i></button>
+        <span class="dp-titulo">
+          {{ nombreMes() }}
+          <select class="dp-anio" (change)="cambiarAnio($any($event.target).value)">
+            @for (anio of anios(); track anio) {
+              <option [value]="anio" [selected]="anio === anioVisible()">{{ anio }}</option>
+            }
+          </select>
+        </span>
+        <button type="button" class="dp-nav" (click)="cambiarMes(1)"><i class="bi bi-chevron-right"></i></button>
+      </div>
+
+      <div class="dp-grid dp-semana">
+        @for (dia of diasSemana; track $index) {
+          <span>{{ dia }}</span>
+        }
+      </div>
+
+      <div class="dp-grid">
+        @for (dia of dias(); track dia.iso) {
+          <button
+            type="button"
+            class="dp-dia"
+            [class.fuera]="dia.fueraDeMes"
+            [class.hoy]="dia.hoy"
+            [class.sel]="dia.seleccionado"
+            [disabled]="dia.deshabilitado"
+            (click)="seleccionar(dia.iso)">{{ dia.numero }}</button>
+        }
+      </div>
+
+      <div class="dp-footer">
+        <button type="button" class="dp-hoy" (click)="irAHoy()">Hoy</button>
+      </div>
+    </div>
+  }
+</div>

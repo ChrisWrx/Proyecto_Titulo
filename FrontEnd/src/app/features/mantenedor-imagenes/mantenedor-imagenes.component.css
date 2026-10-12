@@ -9,6 +9,25 @@
   overflow: auto;
 }
 
+:host-context(.security-content) .mantenedor-shell,
+:host-context(.security-content) .mantenedor-container {
+  overflow: visible;
+}
+
+:host-context(.security-content) .mantenedor-container {
+  padding: 0;
+}
+
+:host-context(.security-content) .card-tabla.glass-panel,
+:host-context(.security-content) .mantenedor-content .glass-panel {
+  border: 1px solid #dbe7f4;
+  border-radius: 8px;
+  background: #f8fafc;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .mantenedor-container {
   flex: 1;
   padding: 0.3rem 0 0;
@@ -147,7 +166,22 @@
 }
 
 .mantenedor-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
   margin-bottom: 0.45rem;
+}
+
+.mantenedor-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  color: #0b4aa8;
+  background: #e7f0ff;
+  font-size: 1.05rem;
 }
 
 .mantenedor-header h1 {
@@ -585,10 +619,22 @@
 }
 
 .card-tabla h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: #0a3a86;
+}
+
+.tabla-title-icon,
+.modal-heading-icon {
+  color: #1d61d1;
+}
+
+.modal-heading-icon {
+  margin-right: 0.2rem;
 }
 
 .btn-agregar-imagen {

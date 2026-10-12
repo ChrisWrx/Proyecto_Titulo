@@ -8,7 +8,7 @@ import { InteroperabilidadApiService, ResumenInteroperabilidad, RedNodo, Recurso
 import { MantenedorImagenesComponent } from '../mantenedor-imagenes/mantenedor-imagenes.component';
 import { UsuariosComponent } from '../usuarios/usuarios.component';
 import { CarruselComponent } from './carrusel/carrusel.component';
-import { PacientesComponent } from '../pacientes/pacientes.component';
+import { PacientesComponent, TabClinica } from '../pacientes/pacientes.component';
 
 interface Establecimiento {
   id_establecimiento?: string;
@@ -50,6 +50,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly userMenuOpen = signal(false);
   readonly openSections = signal<Record<string, boolean>>({});
   readonly componentActivo = signal<string | null>(null);
+  readonly pestanaPacientesInicial = signal<TabClinica>('pacientes');
+  readonly pestanasClinicasPermitidas = computed<TabClinica[] | null>(() => {
+    const items = this.menuItems();
+    if (!items.length) return null;
+
+    const menuClinico = items
+      .filter(item => item.ruta?.startsWith('/') || item.nombre.toLowerCase() === 'gestión clínica')
+      .map(item => `${item.nombre} ${item.ruta ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+      .join(' ');
+
+    const pestañas: Array<[TabClinica, string]> = [
+      ['pacientes', 'paciente'],
+      ['atenciones', 'atencione'],
+      ['diagnosticos', 'diagnostic'],
+      ['alergias', 'alergia'],
+      ['medicamentos', 'medicament'],
+      ['examenes', 'examene'],
+      ['observaciones', 'observacione']
+    ];
+
+    return pestañas.filter(([, clave]) => menuClinico.includes(clave)).map(([pestaña]) => pestaña);
+  });
   readonly activeMenuRoute = signal<string | null>(null);
   readonly opcionSeguridadActiva = signal<'usuarios' | 'mantenedor-imagenes'>('usuarios');
   readonly contentAnimationState = signal<'ready' | 'leaving' | 'entering'>('ready');
@@ -751,6 +773,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.activeMenuRoute.set(route);
 
     if (route === '/pacientes' || nameLower === 'pacientes' || nameLower.includes('paciente')) {
+      this.pestanaPacientesInicial.set('pacientes');
+      this.transitionToComponent('pacientes');
+      this.closeSidebarOnMobile();
+      return;
+    }
+
+    if (route === '/atenciones' || nameLower === 'atenciones' || nameLower.includes('atencion')) {
+      this.pestanaPacientesInicial.set('atenciones');
+      this.transitionToComponent('pacientes');
+      this.closeSidebarOnMobile();
+      return;
+    }
+
+    const nombreClinico = nameLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const pestanaClinica: TabClinica | null =
+      route.includes('diagnost') || nombreClinico.includes('diagnost') ? 'diagnosticos' :
+      route.includes('alerg') || nombreClinico.includes('alerg') ? 'alergias' :
+      route.includes('medicament') || nombreClinico.includes('medicament') ? 'medicamentos' :
+      route.includes('examen') || nombreClinico.includes('examen') ? 'examenes' :
+      route.includes('observacion') || nombreClinico.includes('observacion') ? 'observaciones' :
+      null;
+
+    if (pestanaClinica) {
+      this.pestanaPacientesInicial.set(pestanaClinica);
       this.transitionToComponent('pacientes');
       this.closeSidebarOnMobile();
       return;

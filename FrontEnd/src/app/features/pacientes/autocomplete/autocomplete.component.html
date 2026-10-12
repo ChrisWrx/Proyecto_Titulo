@@ -1,0 +1,32 @@
+<div class="ac">
+  <input
+    type="text"
+    class="ac-input"
+    [class.invalido]="invalido()"
+    [disabled]="disabled()"
+    [value]="texto()"
+    [placeholder]="placeholder()"
+    autocomplete="off"
+    (input)="alEscribir($any($event.target).value)"
+    (click)="alternar($event)"
+    (blur)="alSalir()"
+    (keydown.enter)="alEnter($event)"
+    (keydown.escape)="cerrar()" />
+
+  @if (abierto()) {
+    <div class="ac-lista">
+      @if (filtradas().length > 0) {
+        @for (opcion of filtradas(); track opcion.id) {
+          <button
+            type="button"
+            class="ac-item"
+            [class.activa]="opcion.id === value()"
+            (mousedown)="$event.preventDefault()"
+            (click)="seleccionar(opcion)">{{ opcion.nombre }}</button>
+        }
+      } @else {
+        <div class="ac-vacio">Sin coincidencias</div>
+      }
+    </div>
+  }
+</div>

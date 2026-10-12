@@ -333,7 +333,9 @@
         } @else if (componentActivo() === 'usuarios') {
           <app-usuarios></app-usuarios>
         } @else if (componentActivo() === 'pacientes') {
-          <app-pacientes></app-pacientes>
+          <app-pacientes
+            [tabInicial]="pestanaPacientesInicial()"
+            [pestanasPermitidas]="pestanasClinicasPermitidas()"></app-pacientes>
         } @else if (componentActivo() === 'seguridad') {
           <section class="security-shell" aria-label="Opciones de Seguridad">
             <header class="security-header">
@@ -350,6 +352,8 @@
                   class="security-option glass-panel"
                   type="button"
                   [class.is-active]="opcionSeguridadActiva() === (option.ruta === '/seguridad/usuarios' ? 'usuarios' : 'mantenedor-imagenes')"
+                  [class.security-option--usuarios]="option.ruta === '/seguridad/usuarios'"
+                  [class.security-option--imagenes]="option.ruta !== '/seguridad/usuarios'"
                   (click)="seleccionarOpcionSeguridad(option)"
                 >
                   <span class="security-option-icon">

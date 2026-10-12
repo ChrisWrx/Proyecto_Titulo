@@ -12,14 +12,17 @@ import { BannersApiService, TipoBanner, Banner } from '../../core/services/banne
     <div class="mantenedor-shell">
       <div class="mantenedor-container">
         <div class="mantenedor-header">
-          <h1>Mantenedor de Imágenes</h1>
-          <p>Gestiona los banners y carruseles del sistema</p>
+          <span class="mantenedor-header-icon"><i class="bi bi-images"></i></span>
+          <div>
+            <h1>Mantenedor de Imágenes</h1>
+            <p>Gestiona los banners y carruseles del sistema</p>
+          </div>
         </div>
 
         <div class="section-tabla">
           <div class="card-tabla glass-panel">
             <div class="tabla-header">
-              <h2>Banners registrados</h2>
+              <h2><i class="bi bi-collection-fill tabla-title-icon"></i> Banners registrados</h2>
               <div class="tabla-actions">
                 <label class="search-control">
                   <i class="bi bi-search"></i>
@@ -134,7 +137,7 @@ import { BannersApiService, TipoBanner, Banner } from '../../core/services/banne
             <div class="modal-panel glass-panel" [class.is-closing]="modalClosing()" (click)="$event.stopPropagation()">
               <div class="modal-header">
                 <div>
-                  <h2>{{ editingId() ? 'Editar banner' : 'Nuevo banner' }}</h2>
+                  <h2><i class="bi bi-image-fill modal-heading-icon"></i> {{ editingId() ? 'Editar banner' : 'Nuevo banner' }}</h2>
                   <p>{{ editingId() ? 'Actualiza la información del banner seleccionado' : 'Completa la información para registrar una nueva imagen' }}</p>
                 </div>
                 <button class="btn-cerrar-modal" type="button" (click)="cerrarModal()">
@@ -145,7 +148,7 @@ import { BannersApiService, TipoBanner, Banner } from '../../core/services/banne
               <div class="mantenedor-content modal-content">
                 <div class="section-cargador">
                   <div class="card-cargador glass-panel">
-                    <h2>Cargar imagen</h2>
+                    <h2><i class="bi bi-cloud-arrow-up-fill modal-heading-icon"></i> Cargar imagen</h2>
                     <div
                       class="dropzone"
                       [class.active]="dragActive()"

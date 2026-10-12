@@ -10,6 +10,7 @@ import { BannersModule } from './banners/banners.module';
 import { IndicadoresModule } from './indicadores/indicadores.module';
 import { InteroperabilidadModule } from './interoperabilidad/interoperabilidad.module';
 import { GestionClinicaModule } from './gestion-clinica/gestion-clinica.module';
+import { FhirModule } from './fhir/fhir.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { GestionClinicaModule } from './gestion-clinica/gestion-clinica.module';
     IndicadoresModule,
     InteroperabilidadModule,
     GestionClinicaModule,
+    FhirModule,
   ],
 })
 export class AppModule {}

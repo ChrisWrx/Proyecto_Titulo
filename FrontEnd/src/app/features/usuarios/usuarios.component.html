@@ -1,14 +1,17 @@
 <div class="mantenedor-shell">
   <div class="mantenedor-container">
     <div class="mantenedor-header">
-      <h1>Usuarios del Sistema</h1>
-      <p>Gestiona los usuarios y sus accesos</p>
+      <span class="mantenedor-header-icon"><i class="bi bi-people-fill"></i></span>
+      <div>
+        <h1>Usuarios del Sistema</h1>
+        <p>Gestiona los usuarios y sus accesos</p>
+      </div>
     </div>
 
     <div class="section-tabla">
       <div class="card-tabla glass-panel">
         <div class="tabla-header">
-          <h2>Usuarios registrados</h2>
+          <h2><i class="bi bi-person-lines-fill tabla-title-icon"></i> Usuarios registrados</h2>
           <div class="tabla-actions">
             <label class="search-control">
               <i class="bi bi-search"></i>
@@ -41,7 +44,7 @@
                   <td>{{ usuario.username }}</td>
                   <td>{{ usuario.area }}</td>
                   <td>
-                    <span class="badge-rol">{{ usuario.nombre_rol }}</span>
+                    <span class="badge-rol"><i class="bi" [class]="'bi ' + getIconoRol(usuario.nombre_rol)"></i>{{ usuario.nombre_rol }}</span>
                   </td>
                   <td class="acciones">
                     <button
@@ -119,7 +122,7 @@
         <div class="modal-panel modal-panel--wide glass-panel" [class.is-closing]="modalClosing()" [class.password-active]="modalContrasenaOpen()" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
-              <h2>Editar usuario</h2>
+              <h2><i class="bi bi-person-gear modal-heading-icon"></i> Editar usuario</h2>
             </div>
             <button class="btn-cerrar-modal" type="button" (click)="cerrarModal()">
               <i class="bi bi-x-lg"></i>
@@ -155,12 +158,18 @@
                 @if (esSuperAdmin()) {
                   <input type="text" class="form-input campo-valido" value="Administración Central" disabled />
                 } @else {
-                  <select class="form-input" [ngModel]="tipoEstablecimientoSeleccionado()" (ngModelChange)="onTipoEstablecimientoChange($event)">
-                    <option value="">Selecciona un tipo de centro</option>
-                    @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
-                      <option [value]="tipo">{{ tipo }}</option>
+                  <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                    <input type="text" class="form-input" [ngModel]="tipoEstablecimientoTexto()" (ngModelChange)="onTipoEstablecimientoInput($event)" (blur)="onTipoEstablecimientoBlur()" (click)="toggleTipoEstablecimientoDropdown($event)" placeholder="Selecciona un tipo de centro" autocomplete="off" />
+                    @if (tipoEstablecimientoOpen()) {
+                      <div class="autocomplete-list">
+                        @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarTipoEstablecimiento(tipo)"><span class="tipo-nombre">{{ tipo }}</span></button>
+                        } @empty {
+                          <div class="autocomplete-empty">Sin coincidencias</div>
+                        }
+                      </div>
                     }
-                  </select>
+                  </div>
                 }
               </div>
               <div class="form-group">
@@ -168,12 +177,18 @@
                 @if (esSuperAdmin()) {
                   <input type="text" class="form-input campo-valido" value="SICHCP - Nivel Central" disabled />
                 } @else {
-                  <select class="form-input" [disabled]="!tipoEstablecimientoSeleccionado()" [ngModel]="idEstablecimientoSeleccionado()" (ngModelChange)="onEstablecimientoChange($event)">
-                    <option value="">Selecciona un establecimiento</option>
-                    @for (e of establecimientosFiltradosPorTipo(); track e.id_establecimiento) {
-                      <option [value]="e.id_establecimiento">{{ e.nombre }}</option>
+                  <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                    <input type="text" class="form-input" [disabled]="!tipoEstablecimientoSeleccionado()" [ngModel]="establecimientoTexto()" (ngModelChange)="onEstablecimientoInput($event)" (blur)="onEstablecimientoBlur()" (click)="toggleEstablecimientoDropdown($event)" placeholder="Selecciona un establecimiento" autocomplete="off" />
+                    @if (establecimientoOpen() && tipoEstablecimientoSeleccionado()) {
+                      <div class="autocomplete-list">
+                        @for (establecimiento of establecimientosFiltradosPorTipo(); track establecimiento.id_establecimiento) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarEstablecimiento(establecimiento)"><span class="tipo-nombre">{{ establecimiento.nombre }}</span></button>
+                        } @empty {
+                          <div class="autocomplete-empty">Sin coincidencias</div>
+                        }
+                      </div>
                     }
-                  </select>
+                  </div>
                 }
               </div>
               <div class="form-group">
@@ -265,7 +280,7 @@
         <div class="modal-panel modal-panel--wide glass-panel" [class.is-closing]="modalCrearClosing()" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
-              <h2>Crear usuario - {{ centroSaludSesion() }}</h2>
+              <h2><i class="bi bi-person-plus-fill modal-heading-icon"></i> Crear usuario - {{ centroSaludSesion() }}</h2>
             </div>
             <button class="btn-cerrar-modal" type="button" (click)="cerrarModalCrear()">
               <i class="bi bi-x-lg"></i>
@@ -356,18 +371,18 @@
                 @if (esSuperAdmin()) {
                   <input type="text" class="form-input campo-valido" [disabled]="true" value="Administración Central" />
                 } @else {
-                  <select 
-                    class="form-input" 
-                    [class.campo-valido]="campoCentroValido('tipo')"
-                    [class.campo-invalido]="campoCentroInvalido('tipo')"
-                    [ngModel]="tipoEstablecimientoSeleccionado()" 
-                    (ngModelChange)="onTipoEstablecimientoChange($event)"
-                  >
-                    <option value="">Selecciona un tipo de centro</option>
-                    @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
-                      <option [value]="tipo">{{ tipo }}</option>
+                  <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                    <input type="text" class="form-input" [class.campo-valido]="campoCentroValido('tipo')" [class.campo-invalido]="campoCentroInvalido('tipo')" [ngModel]="tipoEstablecimientoTexto()" (ngModelChange)="onTipoEstablecimientoInput($event)" (blur)="onTipoEstablecimientoBlur()" (click)="toggleTipoEstablecimientoDropdown($event)" placeholder="Selecciona un tipo de centro" autocomplete="off" />
+                    @if (tipoEstablecimientoOpen()) {
+                      <div class="autocomplete-list">
+                        @for (tipo of tiposEstablecimientoDisponibles(); track tipo) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarTipoEstablecimiento(tipo)"><span class="tipo-nombre">{{ tipo }}</span></button>
+                        } @empty {
+                          <div class="autocomplete-empty">Sin coincidencias</div>
+                        }
+                      </div>
                     }
-                  </select>
+                  </div>
                 }
               </div>
 
@@ -376,19 +391,18 @@
                 @if (esSuperAdmin()) {
                   <input type="text" class="form-input campo-valido" [disabled]="true" value="SICHCP - Nivel Central" />
                 } @else {
-                  <select 
-                    class="form-input" 
-                    [class.campo-valido]="campoCentroValido('establecimiento')"
-                    [class.campo-invalido]="campoCentroInvalido('establecimiento')"
-                    [disabled]="!tipoEstablecimientoSeleccionado()"
-                    [ngModel]="idEstablecimientoSeleccionado()" 
-                    (ngModelChange)="onEstablecimientoChange($event)"
-                  >
-                    <option value="">Selecciona un establecimiento</option>
-                    @for (e of establecimientosFiltradosPorTipo(); track e.id_establecimiento) {
-                      <option [value]="e.id_establecimiento">{{ e.nombre }}</option>
+                  <div class="autocomplete-wrapper" (click)="$event.stopPropagation()">
+                    <input type="text" class="form-input" [class.campo-valido]="campoCentroValido('establecimiento')" [class.campo-invalido]="campoCentroInvalido('establecimiento')" [disabled]="!tipoEstablecimientoSeleccionado()" [ngModel]="establecimientoTexto()" (ngModelChange)="onEstablecimientoInput($event)" (blur)="onEstablecimientoBlur()" (click)="toggleEstablecimientoDropdown($event)" placeholder="Selecciona un establecimiento" autocomplete="off" />
+                    @if (establecimientoOpen() && tipoEstablecimientoSeleccionado()) {
+                      <div class="autocomplete-list">
+                        @for (establecimiento of establecimientosFiltradosPorTipo(); track establecimiento.id_establecimiento) {
+                          <button class="autocomplete-item" type="button" (mousedown)="$event.preventDefault()" (click)="seleccionarEstablecimiento(establecimiento)"><span class="tipo-nombre">{{ establecimiento.nombre }}</span></button>
+                        } @empty {
+                          <div class="autocomplete-empty">Sin coincidencias</div>
+                        }
+                      </div>
                     }
-                  </select>
+                  </div>
                 }
               </div>
 

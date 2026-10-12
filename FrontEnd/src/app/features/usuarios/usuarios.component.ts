@@ -93,6 +93,12 @@ export class UsuariosComponent implements OnInit {
   readonly establecimientos = signal<EstablecimientoSaludItem[]>([]);
   readonly tipoEstablecimientoSeleccionado = signal<string>('');
   readonly idEstablecimientoSeleccionado = signal<string>('');
+  readonly tipoEstablecimientoTexto = signal('');
+  readonly establecimientoTexto = signal('');
+  readonly tipoEstablecimientoOpen = signal(false);
+  readonly establecimientoOpen = signal(false);
+  readonly tipoEstablecimientoShowAll = signal(false);
+  readonly establecimientoShowAll = signal(false);
 
   readonly tiposEstablecimientoDisponibles = computed(() => {
     const lista = this.establecimientos();
@@ -100,14 +106,20 @@ export class UsuariosComponent implements OnInit {
     lista.forEach(e => {
       if (e.tipo) tipos.add(e.tipo);
     });
-    return Array.from(tipos).sort();
+    const opciones = Array.from(tipos).sort();
+    if (this.tipoEstablecimientoShowAll()) return opciones;
+    const texto = this.tipoEstablecimientoTexto().trim().toLowerCase();
+    return texto ? opciones.filter(tipo => tipo.toLowerCase().includes(texto)) : opciones;
   });
 
   readonly establecimientosFiltradosPorTipo = computed(() => {
     const tipo = this.tipoEstablecimientoSeleccionado();
     const lista = this.establecimientos();
     if (!tipo) return [];
-    return lista.filter(e => e.tipo === tipo);
+    const opciones = lista.filter(e => e.tipo === tipo);
+    if (this.establecimientoShowAll()) return opciones;
+    const texto = this.establecimientoTexto().trim().toLowerCase();
+    return texto ? opciones.filter(e => e.nombre.toLowerCase().includes(texto)) : opciones;
   });
 
   readonly establecimientoDetalleSeleccionado = computed(() => {
@@ -188,6 +200,28 @@ export class UsuariosComponent implements OnInit {
   buscarUsuarios(texto: string): void {
     this.textoBusqueda.set(texto);
     this.paginaActual.set(1);
+  }
+
+  getIconoRol(nombreRol: string | null | undefined): string {
+    switch ((nombreRol ?? '').trim().toUpperCase()) {
+      case 'SUPER_ADMIN':
+      case 'ADMIN':
+        return 'bi-shield-lock-fill';
+      case 'MEDICO':
+        return 'bi-heart-pulse-fill';
+      case 'ENFERMERIA':
+        return 'bi-bandaid-fill';
+      case 'TENS':
+        return 'bi-activity';
+      case 'SUPERVISOR':
+        return 'bi-clipboard2-check-fill';
+      case 'AUDITOR':
+        return 'bi-clipboard2-data-fill';
+      case 'INTEGRACION':
+        return 'bi-diagram-3-fill';
+      default:
+        return 'bi-person-badge-fill';
+    }
   }
 
   private esUsuarioSesionSuperAdmin(): boolean {
@@ -371,6 +405,8 @@ export class UsuariosComponent implements OnInit {
     this.rolTexto.set('');
     this.tipoEstablecimientoSeleccionado.set('');
     this.idEstablecimientoSeleccionado.set('');
+    this.tipoEstablecimientoTexto.set('');
+    this.establecimientoTexto.set('');
     this.direccionManualInput.set('');
     this.modalCrearClosing.set(false);
     this.modalCrearOpen.set(true);
@@ -406,11 +442,66 @@ export class UsuariosComponent implements OnInit {
   onTipoEstablecimientoChange(tipo: string): void {
     this.tipoEstablecimientoSeleccionado.set(tipo);
     this.idEstablecimientoSeleccionado.set('');
+    this.tipoEstablecimientoTexto.set(tipo);
+    this.establecimientoTexto.set('');
   }
 
   onEstablecimientoChange(id: string): void {
     this.idEstablecimientoSeleccionado.set(id);
     this.direccionManualInput.set('');
+    this.establecimientoTexto.set(this.establecimientos().find(e => e.id_establecimiento === id)?.nombre ?? '');
+  }
+
+  onTipoEstablecimientoInput(valor: string): void {
+    this.tipoEstablecimientoTexto.set(valor);
+    this.tipoEstablecimientoShowAll.set(false);
+    this.tipoEstablecimientoOpen.set(true);
+    this.tipoEstablecimientoSeleccionado.set('');
+    this.idEstablecimientoSeleccionado.set('');
+    this.establecimientoTexto.set('');
+  }
+
+  toggleTipoEstablecimientoDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    const opening = !this.tipoEstablecimientoOpen();
+    this.tipoEstablecimientoShowAll.set(opening);
+    this.tipoEstablecimientoOpen.set(opening);
+    this.establecimientoOpen.set(false);
+  }
+
+  onTipoEstablecimientoBlur(): void {
+    setTimeout(() => this.tipoEstablecimientoOpen.set(false), 120);
+  }
+
+  seleccionarTipoEstablecimiento(tipo: string): void {
+    this.onTipoEstablecimientoChange(tipo);
+    this.tipoEstablecimientoShowAll.set(false);
+    this.tipoEstablecimientoOpen.set(false);
+  }
+
+  onEstablecimientoInput(valor: string): void {
+    this.establecimientoTexto.set(valor);
+    this.establecimientoShowAll.set(false);
+    this.establecimientoOpen.set(true);
+    this.idEstablecimientoSeleccionado.set('');
+  }
+
+  toggleEstablecimientoDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+    const opening = !this.establecimientoOpen();
+    this.establecimientoShowAll.set(opening);
+    this.establecimientoOpen.set(opening);
+    this.tipoEstablecimientoOpen.set(false);
+  }
+
+  onEstablecimientoBlur(): void {
+    setTimeout(() => this.establecimientoOpen.set(false), 120);
+  }
+
+  seleccionarEstablecimiento(establecimiento: EstablecimientoSaludItem): void {
+    this.onEstablecimientoChange(establecimiento.id_establecimiento);
+    this.establecimientoShowAll.set(false);
+    this.establecimientoOpen.set(false);
   }
 
   onDireccionManualInput(event: Event): void {
@@ -565,6 +656,8 @@ export class UsuariosComponent implements OnInit {
           this.rolTexto.set(detalle.nombre_rol ?? '');
           this.tipoEstablecimientoSeleccionado.set(detalle.tipo_establecimiento ?? '');
           this.idEstablecimientoSeleccionado.set(detalle.id_establecimiento ?? '');
+          this.tipoEstablecimientoTexto.set(detalle.tipo_establecimiento ?? '');
+          this.establecimientoTexto.set(detalle.nombre_establecimiento ?? '');
           this.direccionManualInput.set(detalle.direccion_establecimiento ?? '');
           this.cargarEstablecimientos();
         }
@@ -638,8 +731,12 @@ export class UsuariosComponent implements OnInit {
   closeDropdowns(): void {
     this.areaOpen.set(false);
     this.rolOpen.set(false);
+    this.tipoEstablecimientoOpen.set(false);
+    this.establecimientoOpen.set(false);
     this.areaShowAll.set(false);
     this.rolShowAll.set(false);
+    this.tipoEstablecimientoShowAll.set(false);
+    this.establecimientoShowAll.set(false);
   }
 
   guardarUsuario(): void {
