@@ -1,0 +1,380 @@
+<div class="gestion-clinica-container">
+  <header class="gc-header">
+    <div class="gc-header-title">
+      <i class="bi bi-diagram-3-fill gc-header-icon"></i>
+      <h1>Interoperabilidad</h1>
+    </div>
+
+    <nav class="gc-tabs" aria-label="Navegación de Interoperabilidad">
+      <button type="button" class="tab-btn" [class.active]="vista() === 'recursos-fhir'" (click)="setVista('recursos-fhir')">
+        <span class="tab-icon-badge icon-pacientes"><i class="bi bi-database-fill"></i></span>
+        <span>Recursos FHIR</span>
+      </button>
+      <button type="button" class="tab-btn" [class.active]="vista() === 'integraciones'" (click)="setVista('integraciones')">
+        <span class="tab-icon-badge icon-atenciones"><i class="bi bi-plug-fill"></i></span>
+        <span>Integraciones</span>
+      </button>
+    </nav>
+  </header>
+
+  @if (cargandoPermisos()) {
+    <div class="gc-content glass-card">
+      <div class="modal-cargando">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        <span>Verificando permisos</span>
+      </div>
+    </div>
+  } @else if (!puedeVer()) {
+    <div class="gc-content glass-card">
+      <div class="empty-state-box">
+        <i class="bi bi-shield-lock-fill"></i>
+        <p>Tu rol no tiene acceso a las herramientas de interoperabilidad.</p>
+      </div>
+    </div>
+  } @else if (vista() === 'recursos-fhir') {
+    <div class="gc-content glass-card">
+      <section class="search-section">
+        <h2 class="search-title">Catálogo de recursos FHIR <span class="fhir-badge-header">FHIR R4</span></h2>
+        <div class="recursos-grid">
+          @for (item of catalogo(); track item.recurso) {
+            <button
+              type="button"
+              class="recurso-card"
+              [class.is-active]="recursoSeleccionado()?.recurso === item.recurso"
+              [class.is-disabled]="!item.soportado"
+              [disabled]="!item.soportado"
+              (click)="seleccionarRecurso(item)">
+              <span class="recurso-icon"><i class="bi" [class]="'bi ' + item.icono"></i></span>
+              <span class="recurso-texto">
+                <strong>{{ item.recurso }}</strong>
+                <small>{{ item.descripcion }}</small>
+              </span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="search-section">
+        <h2 class="search-title">Consultar {{ recursoSeleccionado()?.recurso }} por RUT</h2>
+        <div class="search-box-row">
+          <div class="search-input-wrapper">
+            <i class="bi bi-search input-search-icon"></i>
+            <input type="text" class="search-input" placeholder="Ej. 90000000-6" [value]="rutConsulta()" (input)="onRutInput($event)" (keyup.enter)="consultar()" />
+          </div>
+          <button type="button" class="btn-buscar" (click)="consultar()" [disabled]="consultando()">
+            @if (consultando()) {
+              <span class="btn-text-loading">Consultando<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span></span>
+            } @else {
+              <i class="bi bi-search"></i>
+              <span>Consultar</span>
+            }
+          </button>
+        </div>
+      </section>
+
+      @if (resultado(); as res) {
+        <section class="patient-result-card" [class.is-not-found]="res.estado !== 'OK'">
+          <div class="estado-consulta">
+            <div class="badge-status" [class.status-found]="res.estado === 'OK'" [class.status-not-found]="res.estado === 'ERROR'" [class.status-vacio]="res.estado === 'SIN_RESULTADOS'">
+              <i class="bi" [class]="res.estado === 'OK' ? 'bi bi-check-circle-fill' : res.estado === 'ERROR' ? 'bi bi-x-circle-fill' : 'bi bi-info-circle-fill'"></i>
+              <span>{{ res.mensaje }}</span>
+            </div>
+            <span class="status-chip">{{ res.total }} resultado(s)</span>
+            <span class="status-chip"><i class="bi bi-stopwatch"></i> {{ res.tiempo_ms }} ms</span>
+          </div>
+
+          @if (res.registros.length) {
+            <div class="tabla-wrapper">
+              <table class="tabla-banners">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Recurso</th>
+                    <th>Origen</th>
+                    <th>Establecimiento</th>
+                    <th>Validación</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (registro of res.registros; track registro.id) {
+                    <tr>
+                      <td><code class="fhir-code">{{ registro.id }}</code></td>
+                      <td>{{ registro.resumen }}</td>
+                      <td>{{ registro.origen }}</td>
+                      <td>{{ registro.establecimiento }}</td>
+                      <td>
+                        @if (registro.validacion.valido === true) {
+                          <span class="type-badge badge-atencion"><i class="bi bi-check-circle-fill"></i> Válido</span>
+                        } @else if (registro.validacion.valido === false) {
+                          <span class="type-badge badge-alergia" [title]="registro.validacion.observaciones.join(' | ')"><i class="bi bi-exclamation-triangle-fill"></i> Con observaciones</span>
+                        } @else {
+                          <span class="type-badge badge-default" [title]="registro.validacion.observaciones.join(' | ')">No aplica</span>
+                        }
+                      </td>
+                      <td><button type="button" class="btn-accion" (click)="verJson(registro)"><i class="bi bi-braces"></i> Ver JSON</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      } @else {
+        <div class="empty-state-box small">
+          <i class="bi bi-braces-asterisk"></i>
+          <p>Selecciona un recurso, ingresa un RUT y consulta para ver los resultados.</p>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="gc-content glass-card">
+      @if (resumen(); as res) {
+        <section class="indicators-grid" aria-label="Resumen de integraciones">
+          <div class="indicator-card card-blue">
+            <div class="indicator-icon icon-blue"><i class="bi bi-plug-fill"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ res.total }}</span><span class="indicator-label">Integraciones</span></div>
+          </div>
+          <div class="indicator-card card-green">
+            <div class="indicator-icon icon-green"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ res.conectadas }}</span><span class="indicator-label">Con conexión</span></div>
+          </div>
+          <div class="indicator-card card-red">
+            <div class="indicator-icon icon-red"><i class="bi bi-exclamation-octagon-fill"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ res.con_error }}</span><span class="indicator-label">Con error</span></div>
+          </div>
+          <div class="indicator-card card-cyan">
+            <div class="indicator-icon icon-cyan"><i class="bi bi-toggle-on"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ res.habilitadas }}</span><span class="indicator-label">Habilitadas</span></div>
+          </div>
+        </section>
+      }
+
+      <section class="search-section">
+        <div class="seccion-titulo-row">
+          <h2 class="search-title">Administración de integraciones</h2>
+          @if (puedeEditar()) {
+            <button type="button" class="btn-nueva-atencion" (click)="abrirFormulario()">
+              <i class="bi bi-plus-circle"></i>
+              <span>Nueva integración</span>
+            </button>
+          }
+        </div>
+
+        @if (cargandoIntegraciones() && !integraciones().length) {
+          <div class="modal-cargando">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <span>Cargando integraciones</span>
+          </div>
+        } @else if (!integraciones().length) {
+          <div class="empty-state-box small"><i class="bi bi-plug"></i><p>No hay integraciones registradas.</p></div>
+        } @else {
+          <div class="tabla-wrapper">
+            <table class="tabla-banners">
+              <thead>
+                <tr>
+                  <th>Integración</th>
+                  <th>Tipo</th>
+                  <th>URL base</th>
+                  <th>Estado</th>
+                  <th>Latencia</th>
+                  <th>Última verificación</th>
+                  <th>Habilitada</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of integraciones(); track item.id_integracion) {
+                  <tr [class.fila-deshabilitada]="!item.habilitada">
+                    <td><strong>{{ item.nombre }}</strong></td>
+                    <td>{{ etiquetaTipo(item.tipo) }}</td>
+                    <td><code class="fhir-code">{{ item.url_base }}</code></td>
+                    <td><span class="type-badge" [ngClass]="'estado-' + item.estado_conexion">{{ etiquetaEstado(item.estado_conexion) }}</span></td>
+                    <td>{{ item.latencia_ms !== null ? item.latencia_ms + ' ms' : '—' }}</td>
+                    <td class="col-fecha">{{ formatFecha(item.ultima_verificacion) }}</td>
+                    <td>
+                      <button type="button" class="switch" [class.on]="item.habilitada" [disabled]="!puedeEditar()" (click)="alternarHabilitada(item)" [attr.aria-label]="item.habilitada ? 'Deshabilitar' : 'Habilitar'">
+                        <span></span>
+                      </button>
+                    </td>
+                    <td class="acciones-celda">
+                      <button type="button" class="btn-accion" (click)="verDetalle(item)"><i class="bi bi-eye"></i> Detalle</button>
+                      @if (puedeEditar()) {
+                        <button type="button" class="btn-accion" (click)="abrirFormulario(item)"><i class="bi bi-gear"></i> Configurar</button>
+                        <button type="button" class="btn-accion primario" [disabled]="!item.habilitada || probando() === item.id_integracion" (click)="probar(item)">
+                          @if (probando() === item.id_integracion) {
+                            <span class="btn-text-loading">Probando<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span></span>
+                          } @else {
+                            <i class="bi bi-lightning-charge-fill"></i> Prueba técnica
+                          }
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="search-section">
+        <div class="seccion-titulo-row">
+          <h2 class="search-title">Historial de eventos</h2>
+          <button type="button" class="filter-pill" [class.active]="soloErrores()" (click)="toggleSoloErrores()">Solo errores</button>
+        </div>
+        @if (!historial().length) {
+          <div class="empty-state-box small"><i class="bi bi-clock-history"></i><p>Aún no hay eventos registrados.</p></div>
+        } @else {
+          <div class="tabla-wrapper">
+            <table class="tabla-banners">
+              <thead>
+                <tr><th>Fecha</th><th>Integración</th><th>Evento</th><th>Resultado</th><th>HTTP</th><th>Tiempo</th><th>Detalle</th></tr>
+              </thead>
+              <tbody>
+                @for (evento of historial(); track evento.id_log) {
+                  <tr>
+                    <td class="col-fecha">{{ formatFecha(evento.fecha) }}</td>
+                    <td>{{ evento.integracion }}</td>
+                    <td>{{ evento.tipo === 'PRUEBA' ? 'Prueba técnica' : 'Consulta' }}</td>
+                    <td><span class="type-badge" [ngClass]="evento.exito ? 'badge-atencion' : 'badge-alergia'">{{ evento.exito ? 'Exitoso' : 'Fallido' }}</span></td>
+                    <td>{{ evento.codigo_http ?? '—' }}</td>
+                    <td>{{ evento.latencia_ms !== null ? evento.latencia_ms + ' ms' : '—' }}</td>
+                    <td class="col-origen">{{ evento.mensaje }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+  }
+</div>
+
+<!-- ===== MODAL: JSON del recurso ===== -->
+@if (registroJson(); as registro) {
+  <div class="modal-overlay" (click)="cerrarJson()">
+    <div class="modal-container modal-container-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-braces modal-header-icon"></i> {{ recursoSeleccionado()?.recurso }} · {{ registro.id }}</h3>
+        <button type="button" class="modal-close" (click)="cerrarJson()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="validacion-box" [class.ok]="registro.validacion.valido === true" [class.warn]="registro.validacion.valido === false">
+          @if (registro.validacion.valido === true) {
+            <i class="bi bi-check-circle-fill"></i> <span>El recurso cumple los elementos mínimos esperados.</span>
+          } @else {
+            <ul>
+              @for (obs of registro.validacion.observaciones; track obs) { <li>{{ obs }}</li> }
+            </ul>
+          }
+        </div>
+        <pre class="json-viewer">{{ jsonTexto() }}</pre>
+      </div>
+      <div class="modal-footer-row">
+        <button type="button" class="btn-cerrar-modal" (click)="copiarJson()"><i class="bi bi-clipboard"></i> Copiar JSON</button>
+        <button type="button" class="btn-cerrar-modal" (click)="cerrarJson()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ===== MODAL: Detalle de integración ===== -->
+@if (detalle(); as det) {
+  <div class="modal-overlay" (click)="cerrarDetalle()">
+    <div class="modal-container modal-container-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-plug modal-header-icon"></i> {{ det.nombre }}</h3>
+        <button type="button" class="modal-close" (click)="cerrarDetalle()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <dl class="detalle-grid">
+          <div><dt>Tipo</dt><dd>{{ etiquetaTipo(det.tipo) }}</dd></div>
+          <div><dt>Estado</dt><dd><span class="type-badge" [ngClass]="'estado-' + det.estado_conexion">{{ etiquetaEstado(det.estado_conexion) }}</span></dd></div>
+          <div class="full"><dt>URL base</dt><dd><code class="fhir-code">{{ det.url_base }}</code></dd></div>
+          <div><dt>Versión FHIR</dt><dd>{{ det.version_fhir }}</dd></div>
+          <div><dt>Autenticación</dt><dd>{{ det.autenticacion }}</dd></div>
+          <div><dt>Última verificación</dt><dd>{{ formatFecha(det.ultima_verificacion) }}</dd></div>
+          <div><dt>Latencia</dt><dd>{{ det.latencia_ms !== null ? det.latencia_ms + ' ms' : '—' }}</dd></div>
+          @if (det.descripcion) { <div class="full"><dt>Descripción</dt><dd>{{ det.descripcion }}</dd></div> }
+        </dl>
+
+        <h4 class="subtitulo-modal">Recursos soportados (/metadata)</h4>
+        @if (det.recursos_soportados.length) {
+          <div class="chips">
+            @for (r of det.recursos_soportados; track r) { <span class="status-chip">{{ r }}</span> }
+          </div>
+        } @else {
+          <p class="col-origen">Aún no se han declarado recursos. Ejecuta una prueba técnica sobre un servidor que exponga /metadata.</p>
+        }
+
+        <h4 class="subtitulo-modal">Últimos eventos</h4>
+        @if (det.ultimos_eventos.length) {
+          <table class="modal-tabla">
+            <thead><tr><th>Fecha</th><th>Resultado</th><th>HTTP</th><th>Detalle</th></tr></thead>
+            <tbody>
+              @for (ev of det.ultimos_eventos; track ev.fecha) {
+                <tr>
+                  <td class="col-fecha">{{ formatFecha(ev.fecha) }}</td>
+                  <td><span class="type-badge" [ngClass]="ev.exito ? 'badge-atencion' : 'badge-alergia'">{{ ev.exito ? 'Exitoso' : 'Fallido' }}</span></td>
+                  <td>{{ ev.codigo_http ?? '—' }}</td>
+                  <td class="col-origen">{{ ev.mensaje }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="col-origen">Sin eventos registrados.</p>
+        }
+      </div>
+      <div class="modal-footer-row">
+        <span></span>
+        <button type="button" class="btn-cerrar-modal" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ===== MODAL: Registrar / configurar integración ===== -->
+@if (modalFormAbierto()) {
+  <div class="modal-overlay modal-overlay--arriba" (click)="cerrarFormulario()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo">
+          <i class="bi bi-gear modal-header-icon"></i>
+          {{ integracionEditandoId() ? 'Configurar integración' : 'Nueva integración' }}
+        </h3>
+        <button type="button" class="modal-close" (click)="cerrarFormulario()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <label class="full">Nombre
+            <input type="text" maxlength="150" [value]="formulario().nombre" (input)="actualizarCampo('nombre', $event)" />
+          </label>
+          <label class="full">URL base del servidor
+            <input type="url" maxlength="300" placeholder="https://servidor.ejemplo.cl/fhir" [value]="formulario().url_base" (input)="actualizarCampo('url_base', $event)" />
+          </label>
+          <div class="campo">
+            <span class="campo-label">Tipo</span>
+            <app-autocomplete placeholder="Selecciona el tipo" [options]="opcionesTipo()" [value]="formulario().tipo" (valueChange)="actualizarValor('tipo', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Versión FHIR</span>
+            <app-autocomplete placeholder="Selecciona la versión" [options]="opcionesVersion()" [value]="formulario().version_fhir" (valueChange)="actualizarValor('version_fhir', $event)" />
+          </div>
+          <div class="campo full">
+            <span class="campo-label">Autenticación</span>
+            <app-autocomplete placeholder="Selecciona la autenticación" [options]="opcionesAutenticacion()" [value]="formulario().autenticacion" (valueChange)="actualizarValor('autenticacion', $event)" />
+          </div>
+          <label class="full">Descripción
+            <textarea maxlength="300" [value]="formulario().descripcion" (input)="actualizarCampo('descripcion', $event)"></textarea>
+          </label>
+        </div>
+        <button type="button" class="btn-save" [disabled]="guardando()" (click)="guardarIntegracion()">
+          {{ guardando() ? 'Guardando...' : 'Guardar integración' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

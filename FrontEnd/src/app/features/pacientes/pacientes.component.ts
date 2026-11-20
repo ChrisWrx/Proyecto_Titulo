@@ -1,8 +1,10 @@
-import { Component, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef, Input, OnChanges, OnInit, OnDestroy, SimpleChanges } from '@angular/core';
+import { EMPTY, Subject, Subscription, catchError, exhaustMap, filter, map, merge, tap, timer } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   CatalogosNuevaAtencion,
+  CategorizacionAtencion,
   ContextoUsuarioAtencion,
   DetalleObservacionClinica,
   DetalleDerivacionAtencion,
@@ -14,7 +16,8 @@ import {
   OpcionCatalogo,
   PacienteSearchResult,
   RecursoFichaItem,
-  TipoRegistroHistorial
+  TipoRegistroHistorial,
+  VistaPacientes
 } from '../../core/services/gestion-clinica-api.service';
 import Swal from 'sweetalert2';
 import { AutocompleteComponent, OpcionAutocomplete } from './autocomplete/autocomplete.component';
@@ -100,7 +103,7 @@ export type TabClinica = 'pacientes' | 'atenciones' | 'diagnosticos' | 'alergias
   styleUrls: ['./pacientes.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PacientesComponent implements OnChanges {
+export class PacientesComponent implements OnChanges, OnInit, OnDestroy {
   readonly ATENCIONES_PAGE_SIZE = 5;
   readonly MODAL_PAGE_SIZE = 5;
   readonly OBSERVACIONES_SLIDE_SIZE = 2;
@@ -119,6 +122,10 @@ export class PacientesComponent implements OnChanges {
   paciente = signal<PacienteSearchResult | null>(null);
 
   readonly atenciones = signal<any[]>([]);
+  readonly configVista = signal<VistaPacientes | null>(null);
+  readonly seguimientoError = signal('');
+  private readonly suscripcionesVista = new Subscription();
+  private readonly actualizarSeguimiento = new Subject<void>();
   readonly filtroRutAtenciones = signal('');
   readonly observaciones = signal<any[]>([]);
   readonly cargandoTab = signal(false);
@@ -320,6 +327,9 @@ export class PacientesComponent implements OnChanges {
   readonly cargandoComunas = signal(false);
   readonly catalogosNueva = signal<CatalogosNuevaAtencion | null>(null);
   readonly contextoNueva = signal<ContextoUsuarioAtencion | null>(null);
+  readonly categorizacionActual = signal<CategorizacionAtencion | null>(null);
+  readonly prioridadSeleccionada = signal('');
+  readonly centroFormulario = computed(() => this.categorizacionActual()?.centro ?? this.contextoNueva()?.centro);
   readonly comunasNueva = signal<OpcionCatalogo[]>([]);
   readonly medicamentosNueva = signal<any[] | null>(null);
   readonly cargandoMedicamentosNueva = signal(false);
@@ -336,7 +346,7 @@ export class PacientesComponent implements OnChanges {
     this.catalogosNueva()?.areas_derivacion ?? []
   );
   readonly estadoNueva = computed<OpcionAutocomplete[]>(() => {
-    const estado = this.catalogosNueva()?.estado_inicial || 'Programada';
+    const estado = this.categorizacionActual()?.formulario['estado'] || this.catalogosNueva()?.estado_inicial || 'Programada';
     return [{ id: estado, nombre: estado }];
   });
   private rutCargadoNueva = '';
@@ -353,6 +363,51 @@ export class PacientesComponent implements OnChanges {
     } else if (changes['tabInicial'] && this.tabInicial !== this.tabActiva() && this.mostrarPestana(this.tabInicial)) {
       this.setTab(this.tabInicial);
     }
+  }
+
+  ngOnInit(): void {
+    this.suscripcionesVista.add(this.gestionClinicaApi.obtenerVistaPacientes().subscribe({
+      next: (configuracion) => {
+        this.configVista.set(configuracion);
+        if ((configuracion.seguimiento_registros || configuracion.flujo_categorizacion) && configuracion.actualizacion_ms) {
+          const consultaSeguimiento = merge(timer(0, configuracion.actualizacion_ms), this.actualizarSeguimiento).pipe(
+            filter(() => document.visibilityState === 'visible'),
+            exhaustMap(() => this.consultarSeguimiento())
+          ).subscribe();
+          this.suscripcionesVista.add(consultaSeguimiento);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.seguimientoError.set('No se pudo cargar la configuración de esta vista.');
+        this.cdr.markForCheck();
+      }
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.suscripcionesVista.unsubscribe();
+    this.actualizarSeguimiento.complete();
+    if (this.temporizadorRutNueva !== undefined) window.clearTimeout(this.temporizadorRutNueva);
+  }
+
+  private consultarSeguimiento() {
+    const consulta = this.configVista()?.seguimiento_registros
+      ? this.gestionClinicaApi.obtenerSeguimientoRegistros()
+      : this.gestionClinicaApi.listarAtenciones(this.filtroRutAtenciones().trim() || undefined).pipe(map(atenciones => ({ atenciones })));
+    return consulta.pipe(
+      tap((resultado) => {
+        this.atenciones.set(resultado.atenciones);
+        this.paginaAtenciones.set(Math.min(this.paginaAtenciones(), this.totalPaginasLista(resultado.atenciones, this.ATENCIONES_PAGE_SIZE)));
+        this.seguimientoError.set('');
+        this.cdr.markForCheck();
+      }),
+      catchError(() => {
+        this.seguimientoError.set('No se pudo actualizar el seguimiento. Se reintentará automáticamente.');
+        this.cdr.markForCheck();
+        return EMPTY;
+      })
+    );
   }
 
   onRutInput(event: Event): void {
@@ -415,6 +470,8 @@ export class PacientesComponent implements OnChanges {
   }
 
   abrirModalNuevaAtencion(): void {
+    this.categorizacionActual.set(null);
+    this.prioridadSeleccionada.set('');
     this.formNueva.set(this.formNuevaVacio());
     this.comunasNueva.set([]);
     this.medicamentosNueva.set(null);
@@ -446,6 +503,7 @@ export class PacientesComponent implements OnChanges {
     const cache = this.catalogosNueva();
     if (cache) {
       this.actualizarCampoNueva('tipo_atencion', cache.tipos_atencion[0] ?? '');
+      this.actualizarCampoNueva('id_area_derivada', cache.area_derivacion_inicial ?? '');
       return;
     }
 
@@ -453,6 +511,7 @@ export class PacientesComponent implements OnChanges {
       next: (catalogos) => {
         this.catalogosNueva.set(catalogos);
         this.actualizarCampoNueva('tipo_atencion', catalogos.tipos_atencion[0] ?? '');
+        this.actualizarCampoNueva('id_area_derivada', catalogos.area_derivacion_inicial ?? '');
       },
       error: () => void this.mostrarErrorNueva('No se pudieron cargar los catálogos del formulario.')
     });
@@ -517,6 +576,7 @@ export class PacientesComponent implements OnChanges {
   }
 
   buscarPacienteNueva(): void {
+    if (this.categorizacionActual()) return;
     const rut = this.formNueva()['rut'];
     const limpio = this.rutLimpio(rut);
     if (limpio.length < 8 || limpio === this.rutCargadoNueva) return;
@@ -664,7 +724,11 @@ export class PacientesComponent implements OnChanges {
         this.guardandoNueva.set(false);
         this.cerrarModalNueva();
         this.rutInput.set(form['rut']);
-        this.buscarPaciente();
+        if (this.configVista()?.seguimiento_registros) {
+          this.actualizarSeguimiento.next();
+        } else {
+          this.buscarPaciente();
+        }
         void Swal.fire({
           icon: 'success',
           title: 'Atención registrada',
@@ -1165,6 +1229,10 @@ export class PacientesComponent implements OnChanges {
   }
 
   abrirModalDetalle(idAtencion: string): void {
+    if (this.configVista()?.accion_atencion === 'categorizar') {
+      this.abrirCategorizacion(idAtencion);
+      return;
+    }
     if (this.obtenerCodigoRolActual() !== 'ADMIN') {
       this.abrirFichaClinica(idAtencion);
       return;
@@ -1190,6 +1258,51 @@ export class PacientesComponent implements OnChanges {
         void Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el detalle de la atención.', confirmButtonColor: '#0b4aa8' });
       }
     });
+  }
+
+  private abrirCategorizacion(idAtencion: string): void {
+    this.suscripcionesVista.add(this.gestionClinicaApi.obtenerCategorizacion(idAtencion).subscribe({
+      next: (detalle) => {
+        this.categorizacionActual.set(detalle);
+        this.prioridadSeleccionada.set(detalle.id_prioridad ?? '');
+        this.catalogosNueva.set(detalle.catalogos);
+        this.comunasNueva.set(detalle.comunas);
+        this.formNueva.set(Object.fromEntries(Object.entries(detalle.formulario).map(([campo, valor]) => [campo, valor ?? ''])));
+        this.actualizarCampoNueva('rut', this.formatearRut(detalle.formulario['rut'] ?? ''));
+        this.actualizarCampoNueva('telefono', this.normalizarTelefono(detalle.formulario['telefono']));
+        this.medicamentosNueva.set(null);
+        this.validandoNueva.set(false);
+        this.modalNuevaCerrando.set(false);
+        this.modalNuevaAbierto.set(true);
+        this.cdr.markForCheck();
+      },
+      error: error => void this.mostrarErrorNueva(error?.error?.message || 'No se pudo cargar la atención.')
+    }));
+  }
+
+  guardarCategorizacion(): void {
+    const detalle = this.categorizacionActual();
+    if (!detalle?.puede_categorizar || this.guardandoNueva()) return;
+    const area = this.formNueva()['id_area_derivada'];
+    if (!area || !this.prioridadSeleccionada()) {
+      void Swal.fire({ icon: 'info', title: 'Datos pendientes', text: 'Selecciona el área de derivación y la prioridad.', confirmButtonColor: '#0b4aa8' });
+      return;
+    }
+    this.guardandoNueva.set(true);
+    this.suscripcionesVista.add(this.gestionClinicaApi.guardarCategorizacion(detalle.id_atencion, {
+      id_area_derivada: area, id_prioridad: this.prioridadSeleccionada()
+    }).subscribe({
+      next: () => {
+        this.guardandoNueva.set(false);
+        this.cerrarModalNueva();
+        this.actualizarSeguimiento.next();
+        void Swal.fire({ icon: 'success', title: 'Atención categorizada', text: 'La prioridad y la derivación fueron registradas.', confirmButtonColor: '#0b4aa8' });
+      },
+      error: error => {
+        this.guardandoNueva.set(false);
+        void this.mostrarErrorNueva(error?.error?.message || 'No se pudo categorizar la atención.');
+      }
+    }));
   }
 
   private obtenerCodigoRolActual(): string {

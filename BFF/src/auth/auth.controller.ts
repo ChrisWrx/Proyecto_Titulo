@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -9,5 +9,11 @@ export class AuthController {
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  /** POST /auth/logout — deja constancia del cierre de sesión (Authorization: Bearer <token>). */
+  @Post('logout')
+  logout(@Headers('authorization') authorization?: string) {
+    return this.authService.logout(authorization);
   }
 }

@@ -71,6 +71,10 @@ export class UsuariosApiService {
 
   constructor(private readonly httpClient: HttpClient) {}
 
+  private authHeaders(): { Authorization: string } {
+    return { Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}` };
+  }
+
   listarUsuarios(idEstablecimiento?: string): Observable<Usuario[]> {
     const params: Record<string, string> = {};
     if (idEstablecimiento) {
@@ -96,17 +100,18 @@ export class UsuariosApiService {
   }
 
   crearUsuario(datos: GuardarUsuario): Observable<Usuario> {
-    return this.httpClient.post<Usuario>(this.apiUrl, datos);
+    return this.httpClient.post<Usuario>(this.apiUrl, datos, { headers: this.authHeaders() });
   }
 
   actualizarUsuario(rut: string, datos: GuardarUsuario): Observable<Usuario> {
-    return this.httpClient.patch<Usuario>(`${this.apiUrl}/${encodeURIComponent(rut)}`, datos);
+    return this.httpClient.patch<Usuario>(`${this.apiUrl}/${encodeURIComponent(rut)}`, datos, { headers: this.authHeaders() });
   }
 
   cambiarContrasena(rut: string, password: string): Observable<{ actualizado: boolean; username: string | null }> {
     return this.httpClient.patch<{ actualizado: boolean; username: string | null }>(
       `${this.apiUrl}/${encodeURIComponent(rut)}/password`,
       { rut, password },
+      { headers: this.authHeaders() },
     );
   }
 
@@ -114,6 +119,7 @@ export class UsuariosApiService {
     return this.httpClient.patch<{ mensaje: string; username?: string }>(
       `${this.apiUrl}/${encodeURIComponent(rut)}/desactivar`,
       {},
+      { headers: this.authHeaders() },
     );
   }
 }

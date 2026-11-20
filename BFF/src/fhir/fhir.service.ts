@@ -243,6 +243,12 @@ export class FhirService {
     return await this.fetchTei('ServiceRequest-EjemploSolicitudInterconsultaFinalizada.json');
   }
 
+  async obtenerPacienteRaw(rutBuscado: string): Promise<any | null> {
+    const rutLimpio = this.normalizarRut(rutBuscado);
+    const fuente = this.URL_PACIENTES.find((p) => this.normalizarRut(p.rutPrincipal) === rutLimpio);
+    return fuente ? await this.fetchUrl(fuente.url) : null;
+  }
+
   async resolverOrganizacionEstablecimiento(): Promise<string> {
     const bundle = await this.getBundleRaw();
     if (bundle && Array.isArray(bundle.entry)) {

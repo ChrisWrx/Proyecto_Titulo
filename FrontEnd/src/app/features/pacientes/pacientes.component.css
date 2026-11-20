@@ -880,7 +880,7 @@
 }
 
 .atenciones-global-table {
-  min-width: 1100px;
+  min-width: 1240px;
 }
 
 .atenciones-global-table th:first-child,
@@ -2812,6 +2812,20 @@ textarea.nm-input {
 
 .btn-cancelar:hover {
   background: rgba(220, 53, 69, 0.3);
+}
+
+.modal-ficha-clinica .nm-actions > .btn-generar-diagnostico,
+.modal-ficha-clinica .nm-actions > .btn-cancelar {
+  flex: 0 1 13.5rem;
+  min-height: 2.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 6px;
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.modal-ficha-clinica .nm-actions > .btn-cancelar {
+  margin-left: auto;
 }
 
 @media (max-width: 640px) {

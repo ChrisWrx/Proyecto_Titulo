@@ -336,6 +336,10 @@
           <app-pacientes
             [tabInicial]="pestanaPacientesInicial()"
             [pestanasPermitidas]="pestanasClinicasPermitidas()"></app-pacientes>
+        } @else if (componentActivo() === 'interoperabilidad') {
+          <app-interoperabilidad [vistaInicial]="vistaInteroperabilidad()"></app-interoperabilidad>
+        } @else if (componentActivo() === 'auditoria') {
+          <app-auditoria></app-auditoria>
         } @else if (componentActivo() === 'seguridad') {
           <section class="security-shell" aria-label="Opciones de Seguridad">
             <header class="security-header">

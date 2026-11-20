@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { UsuariosService } from './usuarios.service';
 
 describe('UsuariosService', () => {
@@ -6,7 +7,7 @@ describe('UsuariosService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UsuariosService],
+      providers: [UsuariosService, { provide: DataSource, useValue: { query: jest.fn() } }],
     }).compile();
 
     service = module.get<UsuariosService>(UsuariosService);

@@ -5,10 +5,14 @@ import Swal from 'sweetalert2';
 import { MenuApiService, MenuItem } from '../../core/services/menu-api.service';
 import { IndicadoresApiService, Indicador, NoticiaItem, RedEstadoResponse, AlertaClinicaItem, AlertaDetalle, AlertaDetalleAlergia, AlertaDetalleMedicamento, AlertaDetalleExamen } from '../../core/services/indicadores-api.service';
 import { InteroperabilidadApiService, ResumenInteroperabilidad, RedNodo, RecursoFhir, Integracion } from '../../core/services/interoperabilidad-api.service';
+import { AuthApiService } from '../../core/services/auth-api.service';
+import { firstValueFrom } from 'rxjs';
 import { MantenedorImagenesComponent } from '../mantenedor-imagenes/mantenedor-imagenes.component';
 import { UsuariosComponent } from '../usuarios/usuarios.component';
 import { CarruselComponent } from './carrusel/carrusel.component';
 import { PacientesComponent, TabClinica } from '../pacientes/pacientes.component';
+import { InteroperabilidadComponent, VistaInteroperabilidad } from '../interoperabilidad/interoperabilidad.component';
+import { AuditoriaComponent } from '../auditoria/auditoria.component';
 
 interface Establecimiento {
   id_establecimiento?: string;
@@ -38,7 +42,7 @@ interface MenuNode extends MenuItem {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, MantenedorImagenesComponent, UsuariosComponent, CarruselComponent, PacientesComponent],
+  imports: [CommonModule, MantenedorImagenesComponent, UsuariosComponent, CarruselComponent, PacientesComponent, InteroperabilidadComponent, AuditoriaComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -51,6 +55,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly openSections = signal<Record<string, boolean>>({});
   readonly componentActivo = signal<string | null>(null);
   readonly pestanaPacientesInicial = signal<TabClinica>('pacientes');
+  readonly vistaInteroperabilidad = signal<VistaInteroperabilidad>('recursos-fhir');
   readonly pestanasClinicasPermitidas = computed<TabClinica[] | null>(() => {
     const items = this.menuItems();
     if (!items.length) return null;
@@ -248,6 +253,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private readonly menuApiService: MenuApiService,
     private readonly indicadoresApiService: IndicadoresApiService,
     private readonly interoperabilidadApiService: InteroperabilidadApiService,
+    private readonly authApiService: AuthApiService,
     private readonly router: Router,
   ) {}
 
@@ -508,6 +514,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     this.openSections.set(states);
+    const tieneInicio = items.some(item => item.ruta === '/inicio' || item.nombre.toLowerCase() === 'inicio');
+    if (!tieneInicio && !this.componentActivo()) {
+      const primeraVista = items.find(item => !item.es_padre && !!item.ruta);
+      if (primeraVista) this.onMenuClick(primeraVista);
+    }
   }
 
   toggleSection(idMenu: string): void {
@@ -756,6 +767,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.activeMenuRoute.set('/pacientes');
         this.transitionToComponent('pacientes');
         this.closeSidebarOnMobile();
+      } else if (item.nombre.toLowerCase() === 'interoperabilidad') {
+        this.activeMenuRoute.set('/interoperabilidad/recursos-fhir');
+        this.vistaInteroperabilidad.set('recursos-fhir');
+        this.transitionToComponent('interoperabilidad');
+        this.closeSidebarOnMobile();
+      } else if (item.nombre.toLowerCase() === 'auditoría' || item.nombre.toLowerCase() === 'auditoria') {
+        this.activeMenuRoute.set('/auditoria/accesos');
+        this.transitionToComponent('auditoria');
+        this.closeSidebarOnMobile();
       }
       return;
     }
@@ -771,6 +791,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const route = item.ruta.trim();
     const nameLower = (item.nombre || '').trim().toLowerCase();
     this.activeMenuRoute.set(route);
+
+    if (route === '/interoperabilidad/recursos-fhir' || route === '/interoperabilidad/integraciones') {
+      this.vistaInteroperabilidad.set(route.endsWith('integraciones') ? 'integraciones' : 'recursos-fhir');
+      this.transitionToComponent('interoperabilidad');
+      this.closeSidebarOnMobile();
+      return;
+    }
+
+    if (route === '/auditoria/accesos') {
+      this.transitionToComponent('auditoria');
+      this.closeSidebarOnMobile();
+      return;
+    }
 
     if (route === '/pacientes' || nameLower === 'pacientes' || nameLower.includes('paciente')) {
       this.pestanaPacientesInicial.set('pacientes');
@@ -902,6 +935,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    await firstValueFrom(this.authApiService.logout()).catch(() => null);
     localStorage.removeItem('access_token');
     localStorage.removeItem('usuario_sesion');
     this.router.navigateByUrl('/login');

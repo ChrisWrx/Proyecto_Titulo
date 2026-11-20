@@ -40,6 +40,14 @@ export class MenuService {
   }
 
   async getMenuByClaims(claims: Record<string, unknown>): Promise<MenuItem[]> {
+    const idUsuario = this.asString(claims['sub']);
+    if (idUsuario) {
+      return this.dataSource.query(
+        `SELECT * FROM fn_lista_menu_usuario($1::UUID)`,
+        [idUsuario],
+      );
+    }
+
     const nombreRol = this.extractRoleName(claims);
     if (nombreRol) {
       return this.getMenuByRoleName(nombreRol);

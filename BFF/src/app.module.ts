@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
+import { AccesoConfiguradoGuard } from './acceso-configurado.guard';
 
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
@@ -11,8 +13,10 @@ import { IndicadoresModule } from './indicadores/indicadores.module';
 import { InteroperabilidadModule } from './interoperabilidad/interoperabilidad.module';
 import { GestionClinicaModule } from './gestion-clinica/gestion-clinica.module';
 import { FhirModule } from './fhir/fhir.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
 
 @Module({
+  providers: [{ provide: APP_GUARD, useClass: AccesoConfiguradoGuard }],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -42,6 +46,7 @@ import { FhirModule } from './fhir/fhir.module';
     InteroperabilidadModule,
     GestionClinicaModule,
     FhirModule,
+    AuditoriaModule,
   ],
 })
 export class AppModule {}

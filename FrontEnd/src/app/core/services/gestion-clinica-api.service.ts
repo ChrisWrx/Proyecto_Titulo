@@ -97,6 +97,10 @@ export interface CatalogosNuevaAtencion {
   tipos_alergia: OpcionCatalogo[];
   tipos_atencion: string[];
   areas_derivacion: OpcionCatalogo[];
+  area_derivacion_inicial?: string | null;
+  area_derivacion_bloqueada?: boolean;
+  mostrar_selector_prioridad?: boolean;
+  prioridades?: OpcionCatalogo[];
   estado_inicial: string | null;
 }
 
@@ -110,6 +114,34 @@ export interface ContextoUsuarioAtencion {
   es_administrador: boolean;
   profesional: string;
   centro: { nombre: string; tipo: string; direccion: string; comuna: string; region: string };
+}
+
+export interface VistaPacientes {
+  seguimiento_registros: boolean;
+  titulo?: string;
+  descripcion?: string;
+  actualizacion_ms?: number;
+  puede_registrar?: boolean;
+  mostrar_rut?: boolean;
+  mostrar_medico?: boolean;
+  permite_detalle?: boolean;
+  columnas?: string[];
+  flujo_categorizacion?: boolean;
+  accion_atencion?: string;
+  mostrar_prioridad?: boolean;
+  prioridad_pendiente?: string;
+  titulo_bandeja?: string;
+  descripcion_bandeja?: string;
+}
+
+export interface CategorizacionAtencion {
+  id_atencion: string;
+  puede_categorizar: boolean;
+  formulario: Record<string, string | null>;
+  centro: ContextoUsuarioAtencion['centro'];
+  catalogos: CatalogosNuevaAtencion;
+  comunas: OpcionCatalogo[];
+  id_prioridad: string | null;
 }
 
 export interface FichaClinicaAtencion {
@@ -248,7 +280,9 @@ export class GestionClinicaApiService {
   }
 
   obtenerCatalogosNuevaAtencion(): Observable<CatalogosNuevaAtencion> {
-    return this.http.get<CatalogosNuevaAtencion>(`${this.apiUrl}/nueva-atencion/catalogos`);
+    return this.http.get<CatalogosNuevaAtencion>(`${this.apiUrl}/nueva-atencion/catalogos`, {
+      headers: this.authHeaders()
+    });
   }
 
   listarComunasPorRegion(idRegion: string): Observable<{ comunas: OpcionCatalogo[] }> {
@@ -259,6 +293,26 @@ export class GestionClinicaApiService {
 
   obtenerContextoUsuario(): Observable<ContextoUsuarioAtencion> {
     return this.http.get<ContextoUsuarioAtencion>(`${this.apiUrl}/nueva-atencion/contexto`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  obtenerVistaPacientes(): Observable<VistaPacientes> {
+    return this.http.get<VistaPacientes>(`${this.apiUrl}/vista-pacientes`, { headers: this.authHeaders() });
+  }
+
+  obtenerSeguimientoRegistros(): Observable<{ atenciones: any[] }> {
+    return this.http.get<{ atenciones: any[] }>(`${this.apiUrl}/seguimiento`, { headers: this.authHeaders() });
+  }
+
+  obtenerCategorizacion(idAtencion: string): Observable<CategorizacionAtencion> {
+    return this.http.get<CategorizacionAtencion>(`${this.apiUrl}/atenciones/${idAtencion}/categorizacion`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  guardarCategorizacion(idAtencion: string, payload: { id_area_derivada: string; id_prioridad: string }): Observable<CategorizacionAtencion> {
+    return this.http.post<CategorizacionAtencion>(`${this.apiUrl}/atenciones/${idAtencion}/categorizacion`, payload, {
       headers: this.authHeaders()
     });
   }
@@ -277,7 +331,8 @@ export class GestionClinicaApiService {
 
   buscarPacientePorRut(rut: string): Observable<PacienteSearchResult> {
     return this.http.get<PacienteSearchResult>(`${this.apiUrl}/pacientes/buscar`, {
-      params: { rut }
+      params: { rut },
+      headers: this.authHeaders()
     });
   }
 
@@ -322,23 +377,23 @@ export class GestionClinicaApiService {
   }
 
   listarDiagnosticos(rut: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/diagnosticos`, { params: { rut } });
+    return this.http.get<any[]>(`${this.apiUrl}/diagnosticos`, { params: { rut }, headers: this.authHeaders() });
   }
 
   listarAlergias(rut: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/alergias`, { params: { rut } });
+    return this.http.get<any[]>(`${this.apiUrl}/alergias`, { params: { rut }, headers: this.authHeaders() });
   }
 
   listarMedicamentos(rut: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/medicamentos`, { params: { rut } });
+    return this.http.get<any[]>(`${this.apiUrl}/medicamentos`, { params: { rut }, headers: this.authHeaders() });
   }
 
   listarExamenes(rut: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/examenes`, { params: { rut } });
+    return this.http.get<any[]>(`${this.apiUrl}/examenes`, { params: { rut }, headers: this.authHeaders() });
   }
 
   listarObservaciones(rut: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/observaciones`, { params: { rut } });
+    return this.http.get<any[]>(`${this.apiUrl}/observaciones`, { params: { rut }, headers: this.authHeaders() });
   }
 
   obtenerDetalleObservacion(idObservacion: string): Observable<DetalleObservacionClinica> {

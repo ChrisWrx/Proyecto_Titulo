@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { LoginDto } from './dto/login.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +12,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
 
     private readonly jwtService: JwtService,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -22,6 +24,12 @@ export class AuthService {
     );
 
     if (!result || result.length === 0) {
+      await this.auditoria.registrar(null, {
+        accion: 'LOGIN_FALLIDO',
+        usuario_intentado: username,
+        exito: false,
+        mensaje: 'Usuario o contraseña incorrectos',
+      });
       throw new UnauthorizedException('Usuario o contraseña incorrectos');
     }
 
@@ -60,10 +68,17 @@ export class AuthService {
 
     const access_token = await this.jwtService.signAsync(payload);
 
+    await this.auditoria.registrar(payload.sub, { accion: 'LOGIN_EXITOSO', exito: true });
+
     return {
       access_token,
       usuario: usuarioConRol,
     };
+  }
+
+  async logout(authorization?: string) {
+    await this.auditoria.registrarDesdeToken(authorization, { accion: 'LOGOUT', exito: true, mensaje: 'Sesión cerrada' });
+    return { ok: true };
   }
 
   private async resolveRoleId(

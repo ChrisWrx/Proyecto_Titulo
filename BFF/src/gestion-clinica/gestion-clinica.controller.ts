@@ -1,18 +1,40 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { GestionClinicaService } from './gestion-clinica.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Controller('gestion-clinica')
 export class GestionClinicaController {
-  constructor(private readonly gestionClinicaService: GestionClinicaService) {}
+  constructor(
+    private readonly gestionClinicaService: GestionClinicaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   @Get('estados')
   async listarEstadosClinica() {
     return await this.gestionClinicaService.listarEstadosClinica();
   }
 
+  @Get('vista-pacientes')
+  async vistaPacientes(@Headers('authorization') authorization?: string) {
+    return this.gestionClinicaService.obtenerVistaPacientes(authorization);
+  }
+
+  @Get('seguimiento')
+  async seguimientoRegistros(@Headers('authorization') authorization?: string) {
+    return this.gestionClinicaService.obtenerSeguimientoRegistros(authorization);
+  }
+
   @Get('pacientes/buscar')
-  async buscarPaciente(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.buscarPacientePorRut(rut || '');
+  async buscarPaciente(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const resultado = await this.gestionClinicaService.buscarPacientePorRut(rut || '');
+    await this.auditoria.registrarDesdeToken(authorization, {
+      accion: 'CONSULTA_PACIENTE',
+      rut,
+      origen: resultado?.origen ?? 'SICHCP (local)',
+      exito: true,
+      mensaje: resultado?.encontrado ? 'Paciente encontrado' : 'Paciente no encontrado',
+    });
+    return resultado;
   }
 
   @Get('atenciones')
@@ -20,12 +42,33 @@ export class GestionClinicaController {
     @Query('rut') rut?: string,
     @Headers('authorization') authorization?: string,
   ) {
-    return await this.gestionClinicaService.listarAtenciones(rut, authorization);
+    const lista = await this.gestionClinicaService.listarAtenciones(rut, authorization);
+    await this.auditarHistorial(authorization, 'Atenciones', rut, lista);
+    return lista;
   }
 
   @Get('atenciones/:id')
   async obtenerAtencion(@Param('id') id: string) {
     return await this.gestionClinicaService.obtenerAtencionPorId(id);
+  }
+
+  @Get('atenciones/:id/categorizacion')
+  async consultarCategorizacion(@Param('id') id: string, @Headers('authorization') authorization?: string) {
+    return this.gestionClinicaService.consultarCategorizacion(id, authorization);
+  }
+
+  @Post('atenciones/:id/categorizacion')
+  async guardarCategorizacion(
+    @Param('id') id: string,
+    @Body() datos: Record<string, unknown>,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const resultado = await this.gestionClinicaService.consultarCategorizacion(id, authorization, datos);
+    await this.auditoria.registrarDesdeToken(authorization, {
+      accion: 'CATEGORIZAR_ATENCION', referencia: id, exito: true,
+      mensaje: 'Área de derivación y prioridad registradas',
+    });
+    return resultado;
   }
 
   @Get('atenciones/:id/detalle')
@@ -43,7 +86,9 @@ export class GestionClinicaController {
     @Body() datos: Record<string, unknown>,
     @Headers('authorization') authorization?: string,
   ) {
-    return await this.gestionClinicaService.derivarAtencion(id, datos, authorization);
+    const resultado = await this.gestionClinicaService.derivarAtencion(id, datos, authorization);
+    await this.auditoria.registrarDesdeToken(authorization, { accion: 'DERIVAR_ATENCION', exito: true, mensaje: 'Atención derivada' });
+    return resultado;
   }
 
   @Get('atenciones/:id/ficha')
@@ -51,7 +96,9 @@ export class GestionClinicaController {
     @Param('id') id: string,
     @Headers('authorization') authorization?: string,
   ) {
-    return await this.gestionClinicaService.obtenerFichaClinica(id, authorization);
+    const ficha = await this.gestionClinicaService.obtenerFichaClinica(id, authorization);
+    await this.auditoria.registrarDesdeToken(authorization, { accion: 'CONSULTA_FICHA', exito: true, mensaje: 'Ficha clínica consultada' });
+    return ficha;
   }
 
   @Get('atenciones/:id/diagnostico')
@@ -86,8 +133,8 @@ export class GestionClinicaController {
   }
 
   @Get('nueva-atencion/catalogos')
-  async catalogosNuevaAtencion() {
-    return await this.gestionClinicaService.obtenerCatalogosNuevaAtencion();
+  async catalogosNuevaAtencion(@Headers('authorization') authorization?: string) {
+    return await this.gestionClinicaService.obtenerCatalogosNuevaAtencion(authorization);
   }
 
   @Get('nueva-atencion/comunas')
@@ -110,12 +157,21 @@ export class GestionClinicaController {
     @Body() datos: Record<string, unknown>,
     @Headers('authorization') authorization?: string,
   ) {
-    return await this.gestionClinicaService.registrarNuevaAtencion(authorization, datos);
+    const resultado = await this.gestionClinicaService.registrarNuevaAtencion(authorization, datos);
+    await this.auditoria.registrarDesdeToken(authorization, {
+      accion: 'REGISTRAR_ATENCION',
+      rut: typeof datos?.rut === 'string' ? datos.rut : undefined,
+      exito: true,
+      mensaje: 'Atención registrada',
+    });
+    return resultado;
   }
 
   @Get('diagnosticos')
-  async listarDiagnosticos(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.listarDiagnosticosPorRut(rut || '');
+  async listarDiagnosticos(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const lista = await this.gestionClinicaService.listarDiagnosticosPorRut(rut || '');
+    await this.auditarHistorial(authorization, 'Diagnósticos', rut, lista);
+    return lista;
   }
 
   @Get('diagnosticos/:id')
@@ -132,8 +188,10 @@ export class GestionClinicaController {
   }
 
   @Get('alergias')
-  async listarAlergias(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.listarAlergiasPorRut(rut || '');
+  async listarAlergias(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const lista = await this.gestionClinicaService.listarAlergiasPorRut(rut || '');
+    await this.auditarHistorial(authorization, 'Alergias', rut, lista);
+    return lista;
   }
 
   @Get('alergias/:id')
@@ -150,8 +208,10 @@ export class GestionClinicaController {
   }
 
   @Get('medicamentos')
-  async listarMedicamentos(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.listarMedicamentosPorRut(rut || '');
+  async listarMedicamentos(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const lista = await this.gestionClinicaService.listarMedicamentosPorRut(rut || '');
+    await this.auditarHistorial(authorization, 'Medicamentos', rut, lista);
+    return lista;
   }
 
   @Get('medicamentos/:id')
@@ -168,8 +228,10 @@ export class GestionClinicaController {
   }
 
   @Get('examenes')
-  async listarExamenes(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.listarExamenesPorRut(rut || '');
+  async listarExamenes(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const lista = await this.gestionClinicaService.listarExamenesPorRut(rut || '');
+    await this.auditarHistorial(authorization, 'Exámenes', rut, lista);
+    return lista;
   }
 
   @Get('examenes/:id')
@@ -186,8 +248,10 @@ export class GestionClinicaController {
   }
 
   @Get('observaciones')
-  async listarObservaciones(@Query('rut') rut: string) {
-    return await this.gestionClinicaService.listarObservacionesPorRut(rut || '');
+  async listarObservaciones(@Query('rut') rut: string, @Headers('authorization') authorization?: string) {
+    const lista = await this.gestionClinicaService.listarObservacionesPorRut(rut || '');
+    await this.auditarHistorial(authorization, 'Observaciones', rut, lista);
+    return lista;
   }
 
   @Get('observaciones/:id')
@@ -206,5 +270,16 @@ export class GestionClinicaController {
   @Get('recursos-ficha')
   async obtenerRecursosFicha(@Query('rut') rut: string) {
     return await this.gestionClinicaService.obtenerRecursosFichaPaciente(rut || '');
+  }
+
+  // Deja constancia de la consulta de un historial (recurso y cantidad), sin guardar su contenido.
+  private async auditarHistorial(authorization: string | undefined, recurso: string, rut: string | undefined, lista: unknown): Promise<void> {
+    await this.auditoria.registrarDesdeToken(authorization, {
+      accion: 'CONSULTA_HISTORIAL',
+      recurso,
+      rut,
+      exito: true,
+      mensaje: `${Array.isArray(lista) ? lista.length : 0} registro(s) consultado(s)`,
+    });
   }
 }

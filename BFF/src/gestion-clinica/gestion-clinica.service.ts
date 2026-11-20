@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { DataSource } from 'typeorm';
 import { InstitutionBrandingService } from './institution-branding.service';
@@ -42,6 +42,9 @@ export class GestionClinicaService {
       return await this.dataSource.query(query, params);
     } catch (error) {
       const driverError = (error as { driverError?: { code?: string; message?: string } }).driverError;
+      if (driverError?.code === '42501') {
+        throw new ForbiddenException(driverError.message);
+      }
       if (driverError?.code === 'P0001' && driverError.message) {
         throw new BadRequestException(driverError.message);
       }
@@ -62,6 +65,7 @@ export class GestionClinicaService {
       throw new UnauthorizedException('No se encontró el usuario de la sesión');
     }
     return this.leerPayload<{
+      id_usuario: string;
       id_profesional: string | null;
       id_establecimiento: string | null;
       id_area: string | null;
@@ -83,11 +87,38 @@ export class GestionClinicaService {
     };
   }
 
+  async obtenerVistaPacientes(authorization?: string) {
+    const filas = await this.ejecutarOpcion(
+      `SELECT * FROM fn_gestion_clinica(p_opcion => 30, p_id => $1)`,
+      [this.extraerIdUsuario(authorization)],
+    );
+    return this.leerPayload(filas[0]);
+  }
+
+  async obtenerSeguimientoRegistros(authorization?: string) {
+    const filas = await this.ejecutarOpcion(
+      `SELECT * FROM fn_gestion_clinica(p_opcion => 31, p_id => $1)`,
+      [this.extraerIdUsuario(authorization)],
+    );
+    return this.leerPayload(filas[0]);
+  }
+
+  async consultarCategorizacion(idAtencion: string, authorization?: string, datos?: Record<string, unknown>) {
+    const filas = await this.ejecutarOpcion(
+      `SELECT * FROM fn_gestion_clinica(p_opcion => $1, p_id => $2, p_datos => $3::JSONB)`,
+      [datos ? 33 : 32, idAtencion, JSON.stringify({ ...datos, id_usuario: this.extraerIdUsuario(authorization) })],
+    );
+    return this.leerPayload(filas[0]);
+  }
+
   /**
    * OPCIÓN 16: Catálogos de Nueva atención (regiones, tipos de alergia, tipos de atención, estado inicial)
    */
-  async obtenerCatalogosNuevaAtencion() {
-    const filas = await this.ejecutarOpcion(`SELECT * FROM fn_gestion_clinica(p_opcion => 16)`, []);
+  async obtenerCatalogosNuevaAtencion(authorization?: string) {
+    const filas = await this.ejecutarOpcion(
+      `SELECT * FROM fn_gestion_clinica(p_opcion => 16, p_id => $1)`,
+      [this.extraerIdUsuario(authorization)],
+    );
     return this.leerPayload(filas[0]);
   }
 
@@ -163,6 +194,7 @@ export class GestionClinicaService {
     const contexto = await this.obtenerContextoUsuario(authorization);
     const payload = {
       ...datos,
+      id_usuario: contexto.id_usuario,
       id_profesional_registra: contexto.id_profesional,
       id_establecimiento: contexto.id_establecimiento,
       id_area: contexto.id_area,
@@ -242,9 +274,11 @@ export class GestionClinicaService {
     const payload = result[0]?.descripcion;
 
     let atencionesLocales: any[] = [];
+    let permiteFuenteExterna = true;
     if (payload) {
       try {
-        const datos = JSON.parse(payload) as { atenciones?: unknown };
+        const datos = JSON.parse(payload) as { atenciones?: unknown; permite_fuente_externa?: boolean };
+        permiteFuenteExterna = datos.permite_fuente_externa ?? true;
         if (Array.isArray(datos.atenciones)) {
           atencionesLocales = datos.atenciones;
         }
@@ -258,7 +292,7 @@ export class GestionClinicaService {
     }
 
     // Fallback: Si no hay atenciones locales y se busca por un RUT o coincidencia FHIR
-    if (rut) {
+    if (rut && permiteFuenteExterna) {
       const atencionesFhir = await this.fhirService.listarAtencionesFhir(rut);
       if (atencionesFhir.length > 0) {
         return atencionesFhir.map(item => ({
@@ -478,9 +512,9 @@ export class GestionClinicaService {
 
   async obtenerDiagnosticoPdf(idAtencion: string, authorization?: string) {
     const contexto = await this.obtenerContextoUsuario(authorization);
-    const result = await this.dataSource.query(
+    const result = await this.ejecutarOpcion(
       `SELECT * FROM fn_gestion_clinica(p_opcion => 23, p_id => $1, p_datos => $2::jsonb)`,
-      [idAtencion, JSON.stringify({ ...contexto, accion: 'consultar' })],
+      [idAtencion, JSON.stringify({ ...contexto, accion: 'generar_ficha' })],
     );
     const reporte = this.leerPayload<Record<string, unknown>>(result[0]);
     const identidad = await this.brandingService.resolve(contexto.centro);

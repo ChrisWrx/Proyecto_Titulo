@@ -1,0 +1,209 @@
+<div class="gestion-clinica-container">
+  <header class="gc-header">
+    <div class="gc-header-title">
+      <i class="bi bi-shield-check gc-header-icon"></i>
+      <h1>Auditoría</h1>
+    </div>
+
+    <nav class="gc-tabs" aria-label="Navegación de Auditoría">
+      <button type="button" class="tab-btn active">
+        <span class="tab-icon-badge icon-accesos"><i class="bi bi-fingerprint"></i></span>
+        <span>Auditoría de Accesos</span>
+      </button>
+    </nav>
+  </header>
+
+  @if (cargandoPermisos()) {
+    <div class="gc-content glass-card">
+      <div class="modal-cargando">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        <span>Verificando permisos</span>
+      </div>
+    </div>
+  } @else if (!puedeVer()) {
+    <div class="gc-content glass-card">
+      <div class="empty-state-box">
+        <i class="bi bi-shield-lock-fill"></i>
+        <p>Tu rol no tiene acceso a la auditoría de accesos.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="gc-content glass-card">
+      @if (indicadores(); as ind) {
+        <section class="indicators-grid" aria-label="Indicadores del día">
+          <div class="indicator-card card-blue">
+            <div class="indicator-icon icon-blue"><i class="bi bi-activity"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ ind.accesos_hoy }}</span><span class="indicator-label">Accesos hoy</span></div>
+          </div>
+          <div class="indicator-card card-red">
+            <div class="indicator-icon icon-red"><i class="bi bi-exclamation-octagon-fill"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ ind.fallidos_hoy }}</span><span class="indicator-label">Accesos fallidos hoy</span></div>
+          </div>
+          <div class="indicator-card card-cyan">
+            <div class="indicator-icon icon-cyan"><i class="bi bi-people-fill"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ ind.usuarios_activos_hoy }}</span><span class="indicator-label">Usuarios activos hoy</span></div>
+          </div>
+          <div class="indicator-card card-purple">
+            <div class="indicator-icon icon-purple"><i class="bi bi-search"></i></div>
+            <div class="indicator-data"><span class="indicator-number">{{ ind.consultas_hoy }}</span><span class="indicator-label">Consultas de pacientes hoy</span></div>
+          </div>
+        </section>
+      }
+
+      @if (retencion(); as ret) {
+        <div class="retencion-info">
+          <i class="bi bi-info-circle"></i>
+          @if (ret.retencion_meses !== null) {
+            <span>Política de retención: los eventos se conservan <strong>{{ ret.retencion_meses }} mes(es)</strong>.</span>
+          } @else {
+            <span>Política de retención: aún no definida; los eventos se conservan sin límite de tiempo.</span>
+          }
+        </div>
+      }
+
+      <section class="search-section">
+        <h2 class="search-title">Filtros de búsqueda</h2>
+        <div class="filtros-grid">
+          <div class="campo">
+            <span class="campo-label">Desde</span>
+            <app-date-picker [compacto]="true" [value]="filtros().desde" [max]="hoyIso" (valueChange)="actualizarFiltro('desde', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Hasta</span>
+            <app-date-picker [compacto]="true" [value]="filtros().hasta" [max]="hoyIso" (valueChange)="actualizarFiltro('hasta', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Módulo</span>
+            <app-autocomplete placeholder="Todos los módulos" emptyLabel="Todos" [options]="opcionesModulo()" [value]="filtros().modulo" (valueChange)="cambiarModulo($event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Acción</span>
+            <app-autocomplete placeholder="Todas las acciones" emptyLabel="Todas" [options]="opcionesAccion()" [value]="filtros().accion" (valueChange)="actualizarFiltro('accion', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Usuario</span>
+            <app-autocomplete placeholder="Todos los usuarios" emptyLabel="Todos" [options]="opcionesUsuario()" [value]="filtros().id_usuario" (valueChange)="actualizarFiltro('id_usuario', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Rol</span>
+            <app-autocomplete placeholder="Todos los roles" emptyLabel="Todos" [options]="opcionesRol()" [value]="filtros().rol" (valueChange)="actualizarFiltro('rol', $event)" />
+          </div>
+          <div class="campo">
+            <span class="campo-label">Resultado</span>
+            <app-autocomplete placeholder="Todos los resultados" emptyLabel="Todos" [options]="opcionesResultado()" [value]="filtros().resultado" (valueChange)="actualizarFiltro('resultado', $event)" />
+          </div>
+        </div>
+        <div class="search-box-row acciones-filtros">
+          <button type="button" class="btn-buscar" (click)="buscar(1)" [disabled]="cargando()">
+            @if (cargando()) {
+              <span class="btn-text-loading">Buscando<span class="animated-dots"><span>.</span><span>.</span><span>.</span></span></span>
+            } @else {
+              <i class="bi bi-search"></i>
+              <span>Buscar</span>
+            }
+          </button>
+          @if (hayFiltros()) {
+            <button type="button" class="btn-cerrar-modal" (click)="limpiarFiltros()"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+          }
+          @if (puedeExportar()) {
+            <button type="button" class="btn-nueva-atencion" (click)="exportar()" [disabled]="exportando() || total() === 0">
+              <i class="bi bi-download"></i>
+              <span>{{ exportando() ? 'Exportando...' : 'Exportar CSV' }}</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="search-section">
+        <h2 class="search-title">Registro de accesos <span class="status-chip">{{ total() }} evento(s)</span></h2>
+
+        @if (cargando() && !eventos().length) {
+          <div class="modal-cargando">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <span>Cargando eventos</span>
+          </div>
+        } @else if (!eventos().length) {
+          <div class="empty-state-box small"><i class="bi bi-clock-history"></i><p>No hay eventos para los filtros indicados.</p></div>
+        } @else {
+          <div class="tabla-wrapper">
+            <table class="tabla-banners">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Módulo</th>
+                  <th>Acción</th>
+                  <th>Recurso</th>
+                  <th>RUT</th>
+                  <th>Origen</th>
+                  <th>IP de origen</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (evento of eventos(); track evento.id_auditoria) {
+                  <tr class="fila-click" (click)="verDetalle(evento)">
+                    <td class="col-fecha">{{ formatFecha(evento.fecha) }}</td>
+                    <td>{{ evento.usuario ?? '—' }}</td>
+                    <td>{{ evento.rol ?? '—' }}</td>
+                    <td>{{ evento.modulo }}</td>
+                    <td>{{ evento.accion }}</td>
+                    <td>{{ evento.recurso ?? evento.referencia ?? '—' }}</td>
+                    <td><code class="fhir-code">{{ evento.rut_enmascarado ?? 'No aplica' }}</code></td>
+                    <td>{{ evento.origen ?? '—' }}</td>
+                    <td>{{ evento.ip_origen ?? '—' }}</td>
+                    <td><span class="type-badge" [ngClass]="evento.exito ? 'badge-atencion' : 'badge-alergia'">{{ evento.exito ? 'Exitoso' : 'Fallido' }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (total() > PAGE_SIZE) {
+            <div class="paginador">
+              <button class="btn-pagina" type="button" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)"><i class="bi bi-chevron-left"></i></button>
+              @for (numero of paginas(); track numero) {
+                <button class="btn-pagina" type="button" [class.activa]="numero === pagina()" (click)="irAPagina(numero)">{{ numero }}</button>
+              }
+              <button class="btn-pagina" type="button" [disabled]="pagina() === totalPaginas()" (click)="irAPagina(pagina() + 1)"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          }
+        }
+      </section>
+    </div>
+  }
+</div>
+
+<!-- ===== MODAL: Detalle del evento ===== -->
+@if (detalle(); as det) {
+  <div class="modal-overlay modal-overlay--arriba" (click)="cerrarDetalle()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-titulo"><i class="bi bi-fingerprint modal-header-icon"></i> Detalle del evento</h3>
+        <button type="button" class="modal-close" (click)="cerrarDetalle()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <dl class="detalle-grid">
+          <div><dt>Fecha</dt><dd>{{ formatFecha(det.fecha) }}</dd></div>
+          <div><dt>Resultado</dt><dd><span class="type-badge" [ngClass]="det.exito ? 'badge-atencion' : 'badge-alergia'">{{ det.exito ? 'Exitoso' : 'Fallido' }}</span></dd></div>
+          <div><dt>Usuario</dt><dd>{{ det.usuario ?? '—' }}</dd></div>
+          <div><dt>Nombre de usuario</dt><dd>{{ det.username ?? '—' }}</dd></div>
+          <div><dt>Rol</dt><dd>{{ det.rol ?? '—' }}</dd></div>
+          <div><dt>Módulo</dt><dd>{{ det.modulo }}</dd></div>
+          <div class="full"><dt>Acción</dt><dd>{{ det.accion }}</dd></div>
+          <div><dt>Recurso</dt><dd>{{ det.recurso ?? '—' }}</dd></div>
+          <div><dt>RUT (enmascarado)</dt><dd><code class="fhir-code">{{ det.rut_enmascarado ?? 'No aplica' }}</code></dd></div>
+          @if (det.referencia) { <div class="full"><dt>Referencia</dt><dd>{{ det.referencia }}</dd></div> }
+          <div><dt>Origen de la información</dt><dd>{{ det.origen ?? '—' }}</dd></div>
+          <div><dt>IP de origen</dt><dd>{{ det.ip_origen ?? '—' }}</dd></div>
+          @if (det.mensaje) { <div class="full"><dt>Detalle</dt><dd>{{ det.mensaje }}</dd></div> }
+        </dl>
+      </div>
+      <div class="modal-footer-row">
+        <span></span>
+        <button type="button" class="btn-cerrar-modal" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

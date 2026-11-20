@@ -15,4 +15,13 @@ export class AuthApiService {
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.baseUrl}/auth/login`, payload);
   }
+
+  // Deja constancia del cierre de sesión en la auditoría.
+  logout(): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(
+      `${this.baseUrl}/auth/logout`,
+      {},
+      { headers: { Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}` } }
+    );
+  }
 }

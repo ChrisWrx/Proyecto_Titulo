@@ -57,7 +57,124 @@
     </nav>
   </header>
 
-  @if (tabActiva() === 'pacientes') {
+  <ng-template #grillaAtenciones>
+          @if (atenciones().length) {
+            <div class="tabla-wrapper atenciones-global-table-wrapper">
+              <table class="tabla-banners atenciones-global-table">
+                <thead>
+                  <tr>
+                    @if (!configVista()?.seguimiento_registros || configVista()?.mostrar_rut) { <th>RUT</th> }
+                    <th>Paciente</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    @if (configVista()?.mostrar_prioridad) { <th>Prioridad</th> }
+                    <th>Fecha</th>
+                    <th>Motivo</th>
+                    <th>Establecimiento</th>
+                    <th>Área derivada</th>
+                    <th>Área de destino</th>
+                    @if (!configVista()?.seguimiento_registros || configVista()?.mostrar_medico) { <th>Médico a cargo</th> }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of paginarLista(atenciones(), paginaAtenciones(), ATENCIONES_PAGE_SIZE); track item.id_registro || $index) {
+                    <tr>
+                      @if (!configVista()?.seguimiento_registros || configVista()?.mostrar_rut) {
+                      <td>
+                        <button
+                          type="button"
+                          class="rut-atencion-badge"
+                          [attr.aria-label]="'Ver detalle de la atención del RUT ' + formatRut(item.rut)"
+                          [disabled]="!configVista() || (configVista()?.seguimiento_registros && !configVista()?.permite_detalle)"
+                          (click)="abrirModalDetalle(item.id_atencion || item.id_registro)">
+                          <i class="bi bi-person-vcard-fill"></i>
+                          {{ formatRut(item.rut) }}
+                        </button>
+                      </td>
+                      }
+                      <td>{{ item.nombre_paciente || '—' }}</td>
+                      <td>{{ item.tipo_atencion || '—' }}</td>
+                      <td>
+                        <span class="estado-atencion" [ngClass]="claseEstadoAtencion(item.estado)">
+                          <i class="bi" [ngClass]="iconoEstadoAtencion(item.estado)"></i>
+                          {{ item.estado || '—' }}
+                        </span>
+                      </td>
+                      @if (configVista()?.mostrar_prioridad) {
+                        <td>
+                          @if (item.prioridad) {
+                            <span class="estado-atencion" [style.background-color]="item.prioridad.color_fondo" [style.color]="item.prioridad.color_texto">
+                              <i class="bi" [ngClass]="item.prioridad.icono"></i>{{ item.prioridad.nombre }}
+                            </span>
+                          } @else {
+                            <span class="estado-atencion estado-neutral"><i class="bi bi-hourglass-split"></i>{{ configVista()?.prioridad_pendiente }}</span>
+                          }
+                        </td>
+                      }
+                      <td>{{ formatFechaHora(item.fecha_inicio) }}</td>
+                      <td>{{ item.motivo_consulta || 'Sin detalle' }}</td>
+                      <td>{{ item.establecimiento_origen || '—' }}</td>
+                      <td>{{ item.area_derivada || 'Sin derivación' }}</td>
+                      <td>
+                        @if (item.area_destino === 'Pendiente') {
+                          <span class="pendiente-atencion"><i class="bi bi-hourglass-split"></i> Pendiente</span>
+                        } @else {
+                          {{ item.area_destino || 'Sin destino' }}
+                        }
+                      </td>
+                      @if (!configVista()?.seguimiento_registros || configVista()?.mostrar_medico) {
+                      <td>
+                        @if (item.medico_nombre) {
+                          {{ item.medico_nombre }}
+                        } @else if (item.area_destino === 'Pendiente') {
+                          <span class="pendiente-atencion"><i class="bi bi-hourglass-split"></i> Pendiente</span>
+                        } @else {
+                          <span class="dato-vacio">Sin médico asignado</span>
+                        }
+                      </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (atenciones().length > ATENCIONES_PAGE_SIZE) {
+              <div class="paginador">
+                <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === 1" (click)="cambiarPagina(-1)"><i class="bi bi-chevron-left"></i></button>
+                @for (pagina of getPaginasLista(atenciones(), ATENCIONES_PAGE_SIZE); track pagina) {
+                  <button class="btn-pagina" type="button" [class.activa]="pagina === paginaAtenciones()" (click)="irAPagina(pagina)">{{ pagina }}</button>
+                }
+                <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === totalPaginasLista(atenciones(), ATENCIONES_PAGE_SIZE)" (click)="cambiarPagina(1)"><i class="bi bi-chevron-right"></i></button>
+              </div>
+            }
+          } @else {
+            <div class="empty-state-box small">
+              <i class="bi bi-clipboard2-x"></i>
+              <p>{{ configVista()?.seguimiento_registros ? 'Aún no has registrado atenciones.' : 'No hay atenciones registradas para la búsqueda indicada.' }}</p>
+            </div>
+          }
+  </ng-template>
+
+  @if (seguimientoError()) {
+    <div class="empty-state-box small" role="status"><p>{{ seguimientoError() }}</p></div>
+  }
+
+  @if (tabActiva() === 'pacientes' && configVista()?.seguimiento_registros) {
+    <div class="gc-content glass-card">
+      <div class="resource-toolbar">
+        <div class="resource-title-wrap"><i class="bi bi-person-vcard-fill resource-title-icon"></i><h2>{{ configVista()?.titulo }}</h2></div>
+      </div>
+      <div class="atenciones-global-toolbar">
+        <div><p>{{ configVista()?.descripcion }}</p></div>
+        @if (configVista()?.puede_registrar) {
+          <button type="button" class="btn-nueva-atencion" (click)="abrirModalNuevaAtencion()">
+            <i class="bi bi-clipboard2-plus"></i><span>Nueva atención</span>
+          </button>
+        }
+      </div>
+      <ng-container *ngTemplateOutlet="grillaAtenciones"></ng-container>
+    </div>
+  } @else if (tabActiva() === 'pacientes' && configVista()) {
     <div class="gc-content glass-card">
       <section class="search-section">
         <h2 class="search-title">Búsqueda de paciente por RUT</h2>
@@ -186,8 +303,8 @@
         } @else {
           <div class="atenciones-global-toolbar">
             <div>
-              <h3>Registro global de atenciones</h3>
-              <p>Consulta las atenciones de todos los pacientes.</p>
+              <h3>{{ configVista()?.titulo_bandeja || 'Registro global de atenciones' }}</h3>
+              <p>{{ configVista()?.descripcion_bandeja || 'Consulta las atenciones de todos los pacientes.' }}</p>
             </div>
             <div class="atenciones-search">
               <label for="filtro-rut-atenciones">Buscar por RUT</label>
@@ -208,82 +325,7 @@
             </div>
           </div>
 
-          @if (atenciones().length) {
-            <div class="tabla-wrapper atenciones-global-table-wrapper">
-              <table class="tabla-banners atenciones-global-table">
-                <thead>
-                  <tr>
-                    <th>RUT</th>
-                    <th>Paciente</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Motivo</th>
-                    <th>Área derivada</th>
-                    <th>Área de destino</th>
-                    <th>Médico a cargo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (item of paginarLista(atenciones(), paginaAtenciones(), ATENCIONES_PAGE_SIZE); track item.id_registro || $index) {
-                    <tr>
-                      <td>
-                        <button
-                          type="button"
-                          class="rut-atencion-badge"
-                          [attr.aria-label]="'Ver detalle de la atención del RUT ' + formatRut(item.rut)"
-                          (click)="abrirModalDetalle(item.id_atencion || item.id_registro)">
-                          <i class="bi bi-person-vcard-fill"></i>
-                          {{ formatRut(item.rut) }}
-                        </button>
-                      </td>
-                      <td>{{ item.nombre_paciente || '—' }}</td>
-                      <td>{{ item.tipo_atencion || '—' }}</td>
-                      <td>
-                        <span class="estado-atencion" [ngClass]="claseEstadoAtencion(item.estado)">
-                          <i class="bi" [ngClass]="iconoEstadoAtencion(item.estado)"></i>
-                          {{ item.estado || '—' }}
-                        </span>
-                      </td>
-                      <td>{{ formatFechaHora(item.fecha_inicio) }}</td>
-                      <td>{{ item.motivo_consulta || 'Sin detalle' }}</td>
-                      <td>{{ item.area_derivada || 'Sin derivación' }}</td>
-                      <td>
-                        @if (item.area_destino === 'Pendiente') {
-                          <span class="pendiente-atencion"><i class="bi bi-hourglass-split"></i> Pendiente</span>
-                        } @else {
-                          {{ item.area_destino || 'Sin destino' }}
-                        }
-                      </td>
-                      <td>
-                        @if (item.medico_nombre) {
-                          {{ item.medico_nombre }}
-                        } @else if (item.area_destino === 'Pendiente') {
-                          <span class="pendiente-atencion"><i class="bi bi-hourglass-split"></i> Pendiente</span>
-                        } @else {
-                          <span class="dato-vacio">Sin médico asignado</span>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-            @if (atenciones().length > ATENCIONES_PAGE_SIZE) {
-              <div class="paginador">
-                <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === 1" (click)="cambiarPagina(-1)"><i class="bi bi-chevron-left"></i></button>
-                @for (pagina of getPaginasLista(atenciones(), ATENCIONES_PAGE_SIZE); track pagina) {
-                  <button class="btn-pagina" type="button" [class.activa]="pagina === paginaAtenciones()" (click)="irAPagina(pagina)">{{ pagina }}</button>
-                }
-                <button class="btn-pagina" type="button" [disabled]="paginaAtenciones() === totalPaginasLista(atenciones(), ATENCIONES_PAGE_SIZE)" (click)="cambiarPagina(1)"><i class="bi bi-chevron-right"></i></button>
-              </div>
-            }
-          } @else {
-            <div class="empty-state-box small">
-              <i class="bi bi-clipboard2-x"></i>
-              <p>No hay atenciones registradas para la búsqueda indicada.</p>
-            </div>
-          }
+          <ng-container *ngTemplateOutlet="grillaAtenciones"></ng-container>
         }
       } @else if (!paciente()?.encontrado && tabActiva() !== 'observaciones' && !tabHistorial()) {
         <div class="empty-state-box">
@@ -721,7 +763,7 @@
         <div class="modal-header">
           <h3 class="modal-titulo">
             <i class="bi bi-clipboard2-plus modal-header-icon"></i>
-            Nueva atención
+            {{ categorizacionActual() ? 'Categorizar atención' : 'Nueva atención' }}
           </h3>
           <button class="modal-close" type="button" (click)="cerrarModalNueva()" aria-label="Cerrar modal">
             <i class="bi bi-x-lg"></i>
@@ -732,18 +774,18 @@
           <div class="nm-grid">
             <div class="nm-group nm-full">
               <label>Centro de Salud</label>
-              <input type="text" class="nm-input" readonly [value]="contextoNueva() ? contextoNueva()!.centro.nombre + ' - ' + contextoNueva()!.centro.tipo : 'Cargando...'" />
-              @if (contextoNueva()) {
+              <input type="text" class="nm-input" readonly [value]="centroFormulario() ? centroFormulario()!.nombre + ' - ' + centroFormulario()!.tipo : 'Cargando...'" />
+              @if (centroFormulario()) {
                 <small class="nm-hint">
                   <i class="bi bi-geo-alt-fill"></i>
-                  {{ contextoNueva()!.centro.direccion }}, {{ contextoNueva()!.centro.comuna }}, {{ contextoNueva()!.centro.region }}
+                  {{ centroFormulario()!.direccion }}, {{ centroFormulario()!.comuna }}, {{ centroFormulario()!.region }}
                 </small>
               }
             </div>
 
             <div class="nm-group">
               <label>RUT</label>
-              <input
+              <input [readonly]="!!categorizacionActual()"
                 type="text"
                 class="nm-input"
                 [class.campo-invalido]="campoInvalidoNueva('rut')"
@@ -760,25 +802,25 @@
             </div>
             <div class="nm-group">
               <label>Nombres</label>
-              <input type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('nombres')" placeholder="Nombres del paciente" [ngModel]="formNueva()['nombres']" (ngModelChange)="actualizarCampoNueva('nombres', $event)" />
+              <input [readonly]="!!categorizacionActual()" type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('nombres')" placeholder="Nombres del paciente" [ngModel]="formNueva()['nombres']" (ngModelChange)="actualizarCampoNueva('nombres', $event)" />
             </div>
 
             <div class="nm-group">
               <label>Apellido Paterno</label>
-              <input type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('apellido_paterno')" placeholder="Apellido paterno" [ngModel]="formNueva()['apellido_paterno']" (ngModelChange)="actualizarCampoNueva('apellido_paterno', $event)" />
+              <input [readonly]="!!categorizacionActual()" type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('apellido_paterno')" placeholder="Apellido paterno" [ngModel]="formNueva()['apellido_paterno']" (ngModelChange)="actualizarCampoNueva('apellido_paterno', $event)" />
             </div>
             <div class="nm-group">
               <label>Apellido Materno</label>
-              <input type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('apellido_materno')" placeholder="Apellido materno" [ngModel]="formNueva()['apellido_materno']" (ngModelChange)="actualizarCampoNueva('apellido_materno', $event)" />
+              <input [readonly]="!!categorizacionActual()" type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('apellido_materno')" placeholder="Apellido materno" [ngModel]="formNueva()['apellido_materno']" (ngModelChange)="actualizarCampoNueva('apellido_materno', $event)" />
             </div>
 
             <div class="nm-group">
               <label>Fecha de nacimiento</label>
-              <app-date-picker [compacto]="true" [value]="formNueva()['fecha_nacimiento']" [max]="hoyIso" [invalido]="campoInvalidoNueva('fecha_nacimiento')" (valueChange)="actualizarCampoNueva('fecha_nacimiento', $event)" />
+              @if (categorizacionActual()) { <input class="nm-input" readonly [value]="formatFecha(formNueva()['fecha_nacimiento'])" /> } @else { <app-date-picker [compacto]="true" [value]="formNueva()['fecha_nacimiento']" [max]="hoyIso" [invalido]="campoInvalidoNueva('fecha_nacimiento')" (valueChange)="actualizarCampoNueva('fecha_nacimiento', $event)" /> }
             </div>
             <div class="nm-group">
               <label>Sexo</label>
-              <app-autocomplete placeholder="Selecciona el sexo" [options]="opcionesSexo" [value]="formNueva()['sexo']" [invalido]="campoInvalidoNueva('sexo')" (valueChange)="actualizarCampoNueva('sexo', $event)" />
+              <app-autocomplete [disabled]="!!categorizacionActual()" placeholder="Selecciona el sexo" [options]="opcionesSexo" [value]="formNueva()['sexo']" [invalido]="campoInvalidoNueva('sexo')" (valueChange)="actualizarCampoNueva('sexo', $event)" />
             </div>
 
             <div class="nm-group">
@@ -788,35 +830,35 @@
                   <svg class="bandera-chile" viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#fff"/><rect y="8" width="24" height="8" fill="#d52b1e"/><rect width="8" height="8" fill="#0039a6"/><polygon fill="#fff" points="4,1.2 4.9,3.4 7.2,3.5 5.4,4.9 6,7.1 4,5.8 2,7.1 2.6,4.9 0.8,3.5 3.1,3.4"/></svg>
                   +56
                 </span>
-                <input type="text" class="telefono-input" placeholder="9 1234 5678" maxlength="9" inputmode="numeric" autocomplete="off" [value]="formNueva()['telefono']" (input)="actualizarTelefonoNueva($any($event.target).value); $any($event.target).value = formNueva()['telefono']" />
+                <input [readonly]="!!categorizacionActual()" type="text" class="telefono-input" placeholder="9 1234 5678" maxlength="9" inputmode="numeric" autocomplete="off" [value]="formNueva()['telefono']" (input)="actualizarTelefonoNueva($any($event.target).value); $any($event.target).value = formNueva()['telefono']" />
               </div>
             </div>
             <div class="nm-group">
               <label>Dirección</label>
-              <input type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('direccion')" placeholder="Calle y número" [ngModel]="formNueva()['direccion']" (ngModelChange)="actualizarCampoNueva('direccion', $event)" />
+              <input [readonly]="!!categorizacionActual()" type="text" class="nm-input" [class.campo-invalido]="campoInvalidoNueva('direccion')" placeholder="Calle y número" [ngModel]="formNueva()['direccion']" (ngModelChange)="actualizarCampoNueva('direccion', $event)" />
             </div>
 
             <div class="nm-group">
               <label>Región</label>
-              <app-autocomplete placeholder="Selecciona una región" [options]="catalogosNueva()?.regiones ?? []" [value]="formNueva()['id_region']" [invalido]="campoInvalidoNueva('id_region')" (valueChange)="onRegionNuevaChange($event)" />
+              <app-autocomplete [disabled]="!!categorizacionActual()" placeholder="Selecciona una región" [options]="catalogosNueva()?.regiones ?? []" [value]="formNueva()['id_region']" [invalido]="campoInvalidoNueva('id_region')" (valueChange)="onRegionNuevaChange($event)" />
             </div>
             <div class="nm-group">
               <label>Comuna</label>
-              <app-autocomplete [placeholder]="formNueva()['id_region'] ? 'Selecciona una comuna' : 'Selecciona una región primero'" [options]="comunasNueva()" [value]="formNueva()['id_comuna']" [disabled]="!formNueva()['id_region'] || cargandoComunas()" [invalido]="campoInvalidoNueva('id_comuna')" (valueChange)="actualizarCampoNueva('id_comuna', $event)" />
+              <app-autocomplete [placeholder]="formNueva()['id_region'] ? 'Selecciona una comuna' : 'Selecciona una región primero'" [options]="comunasNueva()" [value]="formNueva()['id_comuna']" [disabled]="(!formNueva()['id_region'] || cargandoComunas()) || !!categorizacionActual()" [invalido]="campoInvalidoNueva('id_comuna')" (valueChange)="actualizarCampoNueva('id_comuna', $event)" />
             </div>
 
             <div class="nm-group">
               <label>Tipo de atención</label>
-              <app-autocomplete placeholder="Selecciona el tipo de atención" [options]="tiposAtencionNueva()" [value]="formNueva()['tipo_atencion']" [invalido]="campoInvalidoNueva('tipo_atencion')" (valueChange)="actualizarCampoNueva('tipo_atencion', $event)" />
+              <app-autocomplete [disabled]="!!categorizacionActual()" placeholder="Selecciona el tipo de atención" [options]="tiposAtencionNueva()" [value]="formNueva()['tipo_atencion']" [invalido]="campoInvalidoNueva('tipo_atencion')" (valueChange)="actualizarCampoNueva('tipo_atencion', $event)" />
             </div>
             <div class="nm-group">
               <label>Fecha de atención</label>
-              <app-date-picker [compacto]="true" [value]="formNueva()['fecha_atencion']" [invalido]="campoInvalidoNueva('fecha_atencion')" (valueChange)="actualizarCampoNueva('fecha_atencion', $event)" />
+              @if (categorizacionActual()) { <input class="nm-input" readonly [value]="formatFecha(formNueva()['fecha_atencion'])" /> } @else { <app-date-picker [compacto]="true" [value]="formNueva()['fecha_atencion']" [invalido]="campoInvalidoNueva('fecha_atencion')" (valueChange)="actualizarCampoNueva('fecha_atencion', $event)" /> }
             </div>
 
             <div class="nm-group">
               <label>Alergias</label>
-              <app-autocomplete emptyLabel="No aplica" placeholder="Selecciona una alergia" [options]="catalogosNueva()?.tipos_alergia ?? []" [value]="formNueva()['id_tipo_alergia']" (valueChange)="actualizarCampoNueva('id_tipo_alergia', $event)" />
+              <app-autocomplete [disabled]="!!categorizacionActual()" emptyLabel="No aplica" placeholder="Selecciona una alergia" [options]="catalogosNueva()?.tipos_alergia ?? []" [value]="formNueva()['id_tipo_alergia']" (valueChange)="actualizarCampoNueva('id_tipo_alergia', $event)" />
             </div>
             <div class="nm-group">
               <label>Estado</label>
@@ -824,12 +866,19 @@
             </div>
             <div class="nm-group">
               <label>Área de derivación</label>
-              <app-autocomplete placeholder="Selecciona el área" [options]="areasDerivacionNueva()" [value]="formNueva()['id_area_derivada']" [invalido]="campoInvalidoNueva('id_area_derivada')" (valueChange)="actualizarCampoNueva('id_area_derivada', $event)" />
+              <app-autocomplete placeholder="Selecciona el área" [options]="areasDerivacionNueva()" [value]="formNueva()['id_area_derivada']" [disabled]="(catalogosNueva()?.area_derivacion_bloqueada ?? false) || (!!categorizacionActual() && !categorizacionActual()?.puede_categorizar)" [invalido]="campoInvalidoNueva('id_area_derivada')" (valueChange)="actualizarCampoNueva('id_area_derivada', $event)" />
             </div>
+
+            @if (catalogosNueva()?.mostrar_selector_prioridad) {
+              <div class="nm-group">
+                <label>Prioridad</label>
+                <app-autocomplete placeholder="Selecciona la prioridad" [options]="catalogosNueva()?.prioridades ?? []" [value]="prioridadSeleccionada()" [disabled]="!categorizacionActual()?.puede_categorizar" (valueChange)="prioridadSeleccionada.set($event)" />
+              </div>
+            }
 
             <div class="nm-group nm-full">
               <label>Motivo de la asistencia</label>
-              <textarea class="nm-input" rows="3" [class.campo-invalido]="campoInvalidoNueva('motivo_consulta')" placeholder="Describe el motivo de la asistencia" [ngModel]="formNueva()['motivo_consulta']" (ngModelChange)="actualizarCampoNueva('motivo_consulta', $event)"></textarea>
+              <textarea [readonly]="!!categorizacionActual()" class="nm-input" rows="3" [class.campo-invalido]="campoInvalidoNueva('motivo_consulta')" placeholder="Describe el motivo de la asistencia" [ngModel]="formNueva()['motivo_consulta']" (ngModelChange)="actualizarCampoNueva('motivo_consulta', $event)"></textarea>
             </div>
           </div>
 
@@ -866,7 +915,7 @@
           }
 
           <div class="nm-actions">
-            <button class="btn-guardar" type="button" [disabled]="guardandoNueva()" (click)="guardarNuevaAtencion()">
+            <button class="btn-guardar" type="button" [disabled]="guardandoNueva() || (!!categorizacionActual() && !categorizacionActual()?.puede_categorizar)" (click)="categorizacionActual() ? guardarCategorizacion() : guardarNuevaAtencion()">
               <i class="bi bi-save"></i>
               Guardar
             </button>
@@ -1103,8 +1152,8 @@
               @if (fichaPuedeEditar()) {
                 <button class="btn-guardar" type="button" [disabled]="fichaGuardando()" (click)="guardarFichaClinica()"><i class="bi bi-save"></i>{{ fichaGuardando() ? 'Guardando...' : 'Guardar ficha' }}</button>
               }
-              @if (fichaRol() === 'TENS' && ficha.puede_generar_diagnostico) {
-                <button class="btn-generar-diagnostico" type="button" (click)="generarDiagnostico()"><i class="bi bi-file-earmark-pdf"></i> Generar Diagnóstico</button>
+              @if (ficha.puede_generar_diagnostico) {
+                <button class="btn-generar-diagnostico" type="button" (click)="generarDiagnostico()"><i class="bi bi-file-earmark-pdf"></i> Generar Ficha</button>
               }
               <button class="btn-cancelar" type="button" (click)="cerrarFichaClinica()"><i class="bi bi-x-circle"></i> Cerrar</button>
             </div>
